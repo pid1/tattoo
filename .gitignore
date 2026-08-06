@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+dist/
+data/
+*.db
+.devenv/
+.devenv.flake.nix
+.direnv/
+.pytest_cache/
+.ruff_cache/
+.DS_Store

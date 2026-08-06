@@ -1,0 +1,36 @@
+[project]
+name = "tattoo"
+version = "0.1.0"
+description = "daily feed digest with an llm usefulness gate, served on the home tailnet"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi[standard]>=0.129.0",
+    "feedparser>=6.0.14",
+    "jinja2>=3.1.6",
+    "trafilatura>=2.2.0",
+    "youtube-transcript-api>=1.2.4",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.9",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP"]
+# E501: line length is advisory; B008: fastapi Depends() defaults are the framework idiom
+ignore = ["E501", "B008"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# the app is a src-layout package that runs with src on PYTHONPATH rather
+# than being installed (rally convention)
+pythonpath = ["src"]

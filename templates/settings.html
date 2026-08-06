@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎺</text></svg>">
+<title>tattoo — settings</title>
+<style>
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  src: url("/static/fonts/atkinson-hyperlegible-next-variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+</style>
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<h1>tattoo — settings</h1>
+<p class="meta"><a href="/dashboard/">briefing</a> · <a href="/archive/">archive</a></p>
+
+<!-- actions: run-now is the highest-value control on the page (plan §8) -->
+<div class="border-container">
+  <h2>Actions</h2>
+  <button class="btn btn-primary" id="run-now">Run now</button>
+  <button class="btn" id="reprocess">Reprocess (re-judge cached content)</button>
+  <span class="status" id="actions-status"></span>
+  <p class="meta">Reprocess re-scores today's cached content against the current prompts and
+  criteria without refetching anything.</p>
+</div>
+
+<!-- sources -->
+<div class="border-container">
+  <h2>Sources</h2>
+  <div class="form-group">
+    <label for="source-input">Add a source</label>
+    <input type="url" id="source-input"
+           placeholder="paste a feed url, site, youtube link, or @handle">
+    <small>Feed URL, article/site URL, youtube.com/@handle, channel or watch link — resolved
+    server-side.</small>
+  </div>
+  <button class="btn btn-primary" id="resolve-btn">Resolve</button>
+  <span class="status" id="resolve-status"></span>
+  <div id="resolve-result"></div>
+  <div id="source-list"><p class="meta">loading…</p></div>
+</div>
+
+<!-- llm -->
+<div class="border-container">
+  <h2>LLM</h2>
+  <div class="form-group">
+    <label for="anthropic-api-key">Anthropic API key</label>
+    <input type="password" id="anthropic-api-key" autocomplete="off" placeholder="">
+    <small id="anthropic-api-key-hint"></small>
+  </div>
+  <div class="form-group">
+    <label for="triage-model">Triage model (pass 1)</label>
+    <input type="text" id="triage-model" placeholder="claude-haiku-4-5">
+  </div>
+  <div class="form-group">
+    <label for="extract-model">Extraction model (pass 2)</label>
+    <input type="text" id="extract-model" placeholder="claude-sonnet-5">
+  </div>
+  <div class="form-group">
+    <label for="run-token-budget">Run token budget</label>
+    <input type="text" inputmode="numeric" id="run-token-budget">
+    <small>Hard per-run ceiling (input+output tokens); the run aborts loudly past it. 0
+    disables.</small>
+  </div>
+  <div class="form-group">
+    <label><input type="checkbox" id="shadow-mode" style="width:auto;min-height:24px"> Shadow
+    mode — render everything with scores, suppress nothing</label>
+  </div>
+  <button class="btn" id="test-llm">Test connection</button>
+  <span class="status" id="llm-status"></span>
+</div>
+
+<!-- pushover -->
+<div class="border-container">
+  <h2>Pushover</h2>
+  <div class="form-group">
+    <label for="pushover-api-key">Application token</label>
+    <input type="password" id="pushover-api-key" autocomplete="off">
+    <small id="pushover-api-key-hint"></small>
+  </div>
+  <div class="form-group">
+    <label for="pushover-user-key">User key</label>
+    <input type="password" id="pushover-user-key" autocomplete="off">
+    <small id="pushover-user-key-hint"></small>
+  </div>
+  <button class="btn" id="test-pushover">Send test notification</button>
+  <span class="status" id="pushover-status"></span>
+</div>
+
+<!-- youtube -->
+<div class="border-container">
+  <h2>YouTube</h2>
+  <div class="form-group">
+    <label for="youtube-api-key">Data API key</label>
+    <input type="password" id="youtube-api-key" autocomplete="off">
+    <small id="youtube-api-key-hint"></small>
+  </div>
+</div>
+
+<!-- schedule -->
+<div class="border-container">
+  <h2>Schedule</h2>
+  <div class="form-group">
+    <label for="schedule-time">Daily run time</label>
+    <input type="time" id="schedule-time">
+  </div>
+  <div class="form-group">
+    <label for="timezone">Timezone</label>
+    <input type="text" id="timezone" placeholder="America/Chicago">
+  </div>
+  <div class="form-group">
+    <label for="page-url">Page URL (for the notification link)</label>
+    <input type="url" id="page-url" placeholder="http://rosedale-nas.tail117cd.ts.net:6868">
+  </div>
+  <div class="form-group">
+    <label for="retention-days">Retention (days)</label>
+    <input type="text" inputmode="numeric" id="retention-days">
+    <small>Content text and findings older than this are pruned for disk; metadata stays
+    forever.</small>
+  </div>
+</div>
+
+<!-- prompts -->
+<div class="border-container">
+  <h2>Prompts</h2>
+  <div class="form-group">
+    <label for="prompt-triage_system">Triage system prompt</label>
+    <textarea id="prompt-triage_system"></textarea>
+    <button class="btn" data-save-prompt="triage_system">Save prompt</button>
+    <span class="status" id="prompt-triage_system-status"></span>
+    <details class="history" data-history="triage_system"><summary>Version history</summary>
+      <div class="history-list"></div></details>
+  </div>
+  <div class="form-group">
+    <label for="prompt-extract_system">Extraction system prompt</label>
+    <textarea id="prompt-extract_system"></textarea>
+    <button class="btn" data-save-prompt="extract_system">Save prompt</button>
+    <span class="status" id="prompt-extract_system-status"></span>
+    <details class="history" data-history="extract_system"><summary>Version history</summary>
+      <div class="history-list"></div></details>
+  </div>
+</div>
+
+<!-- export -->
+<div class="border-container">
+  <h2>Config export</h2>
+  <a class="btn" href="/api/export/config" download="tattoo-config.toml">Download TOML
+  (secrets excluded)</a>
+</div>
+
+<div class="sticky-save">
+  <button class="btn btn-primary" id="save-settings">Save settings</button>
+  <span class="status" id="save-status"></span>
+</div>
+
+<script>
+"use strict";
+
+function esc(text) {
+  const div = document.createElement("div");
+  div.textContent = text == null ? "" : String(text);
+  return div.innerHTML;
+}
+
+async function api(method, url, body) {
+  const opts = {method: method, cache: "no-store", headers: {}};
+  if (body !== undefined) {
+    opts.headers["Content-Type"] = "application/json";
+    opts.body = JSON.stringify(body);
+  }
+  const resp = await fetch(url, opts);
+  if (resp.status === 204) return null;
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(data.detail || resp.statusText);
+  return data;
+}
+
+function setStatus(id, message, ok) {
+  const el = document.getElementById(id);
+  el.textContent = message;
+  el.className = "status " + (ok ? "ok" : "err");
+  if (ok) setTimeout(() => { el.textContent = ""; }, 4000);
+}
+
+/* -- settings ---------------------------------------------------------- */
+
+const SETTING_FIELDS = {
+  "schedule_time": "schedule-time",
+  "timezone": "timezone",
+  "page_url": "page-url",
+  "triage_model": "triage-model",
+  "extract_model": "extract-model",
+  "run_token_budget": "run-token-budget",
+  "retention_days": "retention-days",
+};
+const SECRET_FIELDS = ["anthropic_api_key", "pushover_api_key", "pushover_user_key",
+                       "youtube_api_key"];
+
+async function loadSettings() {
+  const data = await api("GET", "/api/settings");
+  for (const [key, id] of Object.entries(SETTING_FIELDS)) {
+    document.getElementById(id).value = data.settings[key] || "";
+  }
+  document.getElementById("shadow-mode").checked = data.settings.shadow_mode === "true";
+  for (const key of SECRET_FIELDS) {
+    const id = key.replaceAll("_", "-");
+    const input = document.getElementById(id);
+    input.value = "";  /* never pre-fill secrets */
+    const info = data.secrets[key];
+    let hint = info.set ? "set (" + info.hint + ") — leave blank to keep" : "not set";
+    if (info.env_override) hint += " · env override active; the stored value is ignored";
+    document.getElementById(id + "-hint").textContent = hint;
+  }
+}
+
+async function saveSettings() {
+  const updates = {};
+  for (const [key, id] of Object.entries(SETTING_FIELDS)) {
+    updates[key] = document.getElementById(id).value.trim();
+  }
+  updates.shadow_mode = document.getElementById("shadow-mode").checked ? "true" : "false";
+  for (const key of SECRET_FIELDS) {
+    const value = document.getElementById(key.replaceAll("_", "-")).value.trim();
+    if (value) updates[key] = value;  /* blank means keep (write-only fields) */
+  }
+  try {
+    await api("PUT", "/api/settings", {settings: updates});
+    setStatus("save-status", "saved", true);
+    await loadSettings();
+  } catch (e) {
+    setStatus("save-status", "failed: " + e.message, false);
+  }
+}
+
+/* -- sources ----------------------------------------------------------- */
+
+function sourceCard(src) {
+  const s = src.stats;
+  const passRate = s.pass_rate_30d == null ? "–" : Math.round(s.pass_rate_30d * 100) + "%";
+  return `
+  <div class="source-card${src.enabled ? "" : " disabled"}" data-id="${src.id}">
+    <h3>${esc(src.display_name)} <span class="meta">(${esc(src.type)}${src.enabled ? "" : " · disabled"})</span></h3>
+    <div class="source-stats">
+      items ${s.items_total} · pass rate 30d ${passRate} · tokens 30d ${s.tokens_30d}
+      · last poll ${esc(src.last_polled_at || "never")}
+      ${src.last_poll_status && src.last_poll_status !== "ok"
+        ? `· <span class="status err">${esc(src.last_poll_status)}</span>` : ""}
+    </div>
+    <details><summary class="meta">edit</summary>
+      <div class="source-edit">
+        <div class="form-group"><label>Criteria</label>
+          <textarea data-field="criteria">${esc(src.criteria)}</textarea>
+          <small>What counts as signal from this source. Empty uses the generic
+          default.</small></div>
+        <div class="form-group"><label>Threshold (0–10)</label>
+          <input type="text" inputmode="numeric" data-field="threshold"
+                 value="${src.threshold}"></div>
+        <div class="form-group"><label>Daily item cap</label>
+          <input type="text" inputmode="numeric" data-field="daily_item_cap"
+                 value="${src.daily_item_cap}"></div>
+        <button class="btn btn-primary" data-action="save">Save</button>
+        <button class="btn" data-action="toggle">${src.enabled ? "Disable" : "Enable"}</button>
+        <span class="status" data-role="status"></span>
+        <div class="purge-zone">
+          <button class="btn btn-danger" data-action="purge">Purge…</button>
+        </div>
+      </div>
+    </details>
+  </div>`;
+}
+
+async function loadSources() {
+  const data = await api("GET", "/api/sources");
+  const list = document.getElementById("source-list");
+  list.innerHTML = data.sources.length
+    ? data.sources.map(sourceCard).join("")
+    : '<p class="meta">no sources yet — paste one above.</p>';
+}
+
+document.getElementById("source-list").addEventListener("click", async (e) => {
+  const button = e.target.closest("button[data-action]");
+  if (!button) return;
+  const card = button.closest(".source-card");
+  const id = card.dataset.id;
+  const status = card.querySelector('[data-role="status"]');
+  try {
+    if (button.dataset.action === "save") {
+      const body = {};
+      for (const el of card.querySelectorAll("[data-field]")) {
+        body[el.dataset.field] = el.value;
+      }
+      await api("PUT", "/api/sources/" + id, body);
+      status.textContent = "saved"; status.className = "status ok";
+    } else if (button.dataset.action === "toggle") {
+      const enabled = !card.classList.contains("disabled");
+      await api("PUT", "/api/sources/" + id, {enabled: !enabled});
+      await loadSources();
+    } else if (button.dataset.action === "purge") {
+      const name = card.querySelector("h3").textContent;
+      if (!confirm("Purge " + name + "?\n\nThis deletes the source AND all its cached " +
+                   "content, judgments, and findings. Content for items that have since " +
+                   "moved or been taken down cannot be refetched. Disable is the " +
+                   "reversible option.")) return;
+      await api("DELETE", "/api/sources/" + id);
+      await loadSources();
+    }
+  } catch (err) {
+    status.textContent = err.message; status.className = "status err";
+  }
+});
+
+document.getElementById("resolve-btn").addEventListener("click", async () => {
+  const input = document.getElementById("source-input").value.trim();
+  const result = document.getElementById("resolve-result");
+  result.innerHTML = "";
+  if (!input) return;
+  setStatus("resolve-status", "resolving…", true);
+  try {
+    const data = await api("POST", "/api/sources/resolve", {input: input});
+    setStatus("resolve-status", "", true);
+    if (data.choices) {
+      result.innerHTML = '<div class="resolve-card"><b>Several feeds advertised — pick one:</b>' +
+        data.choices.map(c =>
+          `<div><button class="btn" data-choice="${esc(c.url)}">${esc(c.title)}</button></div>`
+        ).join("") + "</div>";
+      return;
+    }
+    renderCard(data.card);
+  } catch (e) {
+    setStatus("resolve-status", e.message, false);
+  }
+});
+
+document.getElementById("resolve-result").addEventListener("click", async (e) => {
+  const choice = e.target.closest("button[data-choice]");
+  if (choice) {
+    document.getElementById("source-input").value = choice.dataset.choice;
+    document.getElementById("resolve-btn").click();
+    return;
+  }
+  const confirmBtn = e.target.closest("button[data-confirm]");
+  if (confirmBtn) {
+    const card = JSON.parse(confirmBtn.dataset.confirm);
+    try {
+      await api("POST", "/api/sources", {
+        type: card.type, feed_url: card.feed_url, display_name: card.title,
+        site_url: card.site_url, daily_item_cap: card.suggested_cap,
+      });
+      document.getElementById("resolve-result").innerHTML = "";
+      document.getElementById("source-input").value = "";
+      await loadSources();
+    } catch (err) {
+      setStatus("resolve-status", err.message, false);
+    }
+  }
+});
+
+function renderCard(card) {
+  const freq = card.per_month == null ? "unknown" : card.per_month + " items/month";
+  document.getElementById("resolve-result").innerHTML = `
+  <div class="resolve-card">
+    <b>${esc(card.title)}</b> <span class="meta">(${esc(card.type)} · ~${esc(freq)})</span>
+    ${card.content_situation ? `<div class="meta">${esc(card.content_situation)}</div>` : ""}
+    <ul>${card.recent.map(t => "<li>" + esc(t) + "</li>").join("")}</ul>
+    <button class="btn btn-primary"
+            data-confirm='${esc(JSON.stringify(card))}'>Add source</button>
+  </div>`;
+}
+
+/* -- prompts ------------------------------------------------------------ */
+
+async function loadPrompt(name) {
+  const data = await api("GET", "/api/prompts/" + name);
+  document.getElementById("prompt-" + name).value = data.value;
+}
+
+document.querySelectorAll("button[data-save-prompt]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const name = button.dataset.savePrompt;
+    try {
+      await api("PUT", "/api/prompts/" + name,
+                {value: document.getElementById("prompt-" + name).value});
+      setStatus("prompt-" + name + "-status", "saved as new version", true);
+    } catch (e) {
+      setStatus("prompt-" + name + "-status", e.message, false);
+    }
+  });
+});
+
+document.querySelectorAll("details[data-history]").forEach((details) => {
+  details.addEventListener("toggle", async () => {
+    if (!details.open) return;
+    const name = details.dataset.history;
+    const data = await api("GET", "/api/prompts/" + name + "/history");
+    details.querySelector(".history-list").innerHTML = data.history.map(h => `
+      <div class="history-item${h.current ? " current" : ""}">
+        <div class="meta">${esc(h.created_at)}${h.current ? " · current" : ""}</div>
+        <pre>${esc(h.value)}</pre>
+        ${h.current ? "" :
+          `<button class="btn" data-rollback="${h.history_id}" data-name="${esc(name)}">
+           Use this version</button>`}
+      </div>`).join("");
+  });
+});
+
+document.addEventListener("click", async (e) => {
+  const button = e.target.closest("button[data-rollback]");
+  if (!button) return;
+  const name = button.dataset.name;
+  await api("POST", "/api/prompts/" + name + "/rollback",
+            {history_id: Number(button.dataset.rollback)});
+  await loadPrompt(name);
+  button.closest("details").open = false;
+  setStatus("prompt-" + name + "-status", "rolled back", true);
+});
+
+/* -- actions and tests --------------------------------------------------- */
+
+document.getElementById("run-now").addEventListener("click", async () => {
+  try {
+    await api("POST", "/api/run");
+    setStatus("actions-status", "run triggered — watch the dashboard", true);
+  } catch (e) { setStatus("actions-status", e.message, false); }
+});
+
+document.getElementById("reprocess").addEventListener("click", async () => {
+  try {
+    await api("POST", "/api/reprocess");
+    setStatus("actions-status", "reprocessing in the background", true);
+  } catch (e) { setStatus("actions-status", e.message, false); }
+});
+
+async function verify(url, statusId) {
+  setStatus(statusId, "testing…", true);
+  try {
+    const data = await api("POST", url);
+    setStatus(statusId, data.success ? "✓ " + data.message : "✗ " + data.error, data.success);
+  } catch (e) { setStatus(statusId, "✗ " + e.message, false); }
+}
+document.getElementById("test-llm").addEventListener("click",
+  () => verify("/api/settings/test-llm", "llm-status"));
+document.getElementById("test-pushover").addEventListener("click",
+  () => verify("/api/settings/test-pushover", "pushover-status"));
+
+document.getElementById("save-settings").addEventListener("click", saveSettings);
+
+/* -- boot ---------------------------------------------------------------- */
+
+Promise.all([
+  loadSettings(),
+  loadSources(),
+  loadPrompt("triage_system"),
+  loadPrompt("extract_system"),
+]).catch((e) => setStatus("save-status", "load failed: " + e.message, false));
+</script>
+</body>
+</html>

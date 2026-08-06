@@ -1,0 +1,16 @@
+.venv
+.devenv
+.direnv
+.git
+.github
+__pycache__
+*.pyc
+*.db
+data
+dist
+tests
+devenv.nix
+devenv.yaml
+AGENTS.md
+README.md
+LICENSE

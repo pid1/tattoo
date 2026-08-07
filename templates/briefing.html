@@ -26,10 +26,6 @@
     {% endfor %}
   </ul>
   {% endif %}
-  {% if entry.specifics %}
-  <p class="specifics">{% for s in entry.specifics %}<code>{{ s }}</code> {% endfor %}</p>
-  {% endif %}
-  {% if entry.not_answered %}<p class="meta">does not answer: {{ entry.not_answered }}</p>{% endif %}
   {% if entry.passed is false and entry.justification %}
   <p class="meta">rejected: {{ entry.justification }}</p>
   {% endif %}

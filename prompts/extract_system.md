@@ -8,9 +8,7 @@ output exactly one json object and no other text:
   "bluf": "<2-3 sentences: the bottom line up front. what happened / what was found / what it means for the reader>",
   "findings": [
     {"text": "<one self-contained finding with its specifics inline>", "locator": "<see locator rules>"}
-  ],
-  "specifics": ["<flat list: every part number, spec, command, price, figure that appears>"],
-  "not_answered": "<one sentence: the obvious question this content raises but does not answer; empty string if none>"
+  ]
 }
 
 ## rules
@@ -19,7 +17,8 @@ output exactly one json object and no other text:
 - each finding must stand alone: a reader who sees only that finding gets a complete, specific fact. include the numbers in the finding text.
 - findings are ordered by importance to the reader, not by position in the content.
 - the bluf is not a table of contents. state conclusions, not topics.
-- specifics is a deduplicated flat list; it may repeat what appears inside findings.
+- part numbers, specs, commands, prices and figures belong inside the finding that uses them. do not emit a separate list of them.
+- if the content raises an obvious question it does not answer, and that gap changes what the reader would do, say so in the bluf or in the relevant finding. do not add a section for it.
 - do not invent, round, or "improve" any figure. quote what the content states.
 - no meta-commentary, no hedging boilerplate, no "the video discusses".
 

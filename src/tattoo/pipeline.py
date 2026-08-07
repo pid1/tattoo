@@ -445,8 +445,6 @@ def _sections_for_today(conn, now: datetime) -> list[dict]:
             # unjudged with content is a gate skip, which renders normally.
             "unavailable": judgment is None and not item["has_content"],
             "bluf": None,
-            "not_answered": None,
-            "specifics": [],
             "findings": [],
         }
         # scope the extraction to the run that produced this judgment. reprocess
@@ -464,8 +462,6 @@ def _sections_for_today(conn, now: datetime) -> list[dict]:
         )
         if extraction:
             entry["bluf"] = extraction["bluf"]
-            entry["not_answered"] = extraction["not_answered"]
-            entry["specifics"] = json.loads(extraction["specifics"] or "[]")
             entry["findings"] = [
                 {
                     "text": f["text"],

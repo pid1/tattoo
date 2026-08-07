@@ -313,15 +313,23 @@ def _judge_stage(conn, run_id: int, now: datetime, reprocess: bool) -> tuple[int
 
     day_start = _local_day_start_utc(now)
     if reprocess:
-        where = "i.first_seen_at >= ?"
+        # re-score exactly what today's page shows, i.e. judged today
+        where = "EXISTS (SELECT 1 FROM judgments j WHERE j.item_id = i.id AND j.created_at >= ?)"
+        bound = day_start
     else:
+        # the acquire stage retries unfetched items for ACQUIRE_RETRY_DAYS, so
+        # the gate has to look back just as far. bounded to today, an item
+        # fetched a day late would be cached and then never judged at all.
         where = (
             "i.first_seen_at >= ? AND NOT EXISTS (SELECT 1 FROM judgments j WHERE j.item_id = i.id)"
+        )
+        bound = (now.astimezone(UTC) - timedelta(days=ACQUIRE_RETRY_DAYS)).isoformat(
+            timespec="seconds"
         )
     rows = conn.execute(
         f"SELECT i.id AS item_id FROM items i JOIN content c ON c.item_id = i.id"
         f" JOIN sources s ON s.id = i.source_id WHERE {where} AND s.enabled = 1 ORDER BY i.id",
-        (day_start,),
+        (bound,),
     ).fetchall()
 
     judged = passed = 0
@@ -384,13 +392,35 @@ def _sections_for_today(conn, now: datetime) -> list[dict]:
     live they are dropped here."""
     shadow = _shadow(conn)
     day_start = _local_day_start_utc(now)
+    utc_now = now.astimezone(UTC)
+    retry_cutoff = (utc_now - timedelta(days=ACQUIRE_RETRY_DAYS)).isoformat(timespec="seconds")
+    expired_from = (utc_now - timedelta(days=ACQUIRE_RETRY_DAYS + 1)).isoformat(timespec="seconds")
+
+    # selected by *judgment* date, not first_seen: an item fetched a day late
+    # is news to the reader on the day it is judged, and keying off first_seen
+    # would drop it from every page.
+    #
+    # three ways onto the page:
+    #   1. judged today -- the normal case
+    #   2. content acquired but not judged (gate skipped or errored) -- real
+    #      content the reader should still see
+    #   3. never fetched and the retry window has expired -- a genuine failure,
+    #      shown once on the day it ages out
+    # an item still inside the retry window with nothing fetched is omitted: it
+    # is a transient state, not information, and will appear when it lands.
     items = conn.execute(
         "SELECT i.*, s.display_name AS source_name, s.type AS source_type,"
-        " s.threshold AS threshold"
+        " s.threshold AS threshold,"
+        " EXISTS (SELECT 1 FROM content c WHERE c.item_id = i.id) AS has_content"
         " FROM items i JOIN sources s ON s.id = i.source_id"
-        " WHERE i.first_seen_at >= ?"
+        " WHERE EXISTS (SELECT 1 FROM judgments j WHERE j.item_id = i.id AND j.created_at >= ?)"
+        "    OR (EXISTS (SELECT 1 FROM content c WHERE c.item_id = i.id)"
+        "        AND NOT EXISTS (SELECT 1 FROM judgments j WHERE j.item_id = i.id)"
+        "        AND i.first_seen_at >= ?)"
+        "    OR (NOT EXISTS (SELECT 1 FROM content c WHERE c.item_id = i.id)"
+        "        AND i.first_seen_at < ? AND i.first_seen_at >= ?)"
         " ORDER BY s.display_name, i.published_at DESC",
-        (day_start,),
+        (day_start, retry_cutoff, retry_cutoff, expired_from),
     ).fetchall()
 
     grouped: dict[str, list[dict]] = {}
@@ -405,15 +435,15 @@ def _sections_for_today(conn, now: datetime) -> list[dict]:
         entry = {
             "title": item["title"],
             "url": item["canonical_url"],
-            "published_at": item["published_at"],
+            # date only: the wall-clock time of publication is noise here
+            "published_at": (item["published_at"] or "")[:10],
             "degraded": bool(item["degraded"]),
             "score": judgment["score"] if judgment else None,
             "justification": judgment["justification"] if judgment else None,
             "passed": passed,
-            # no judgment means the content was never acquired (e.g. transcript
-            # fetching halted). say so rather than rendering a bare title that
-            # reads as a broken card.
-            "awaiting": judgment is None,
+            # unjudged *and* nothing ever fetched: the retry window expired.
+            # unjudged with content is a gate skip, which renders normally.
+            "unavailable": judgment is None and not item["has_content"],
             "bluf": None,
             "not_answered": None,
             "specifics": [],

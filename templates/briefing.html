@@ -2,24 +2,21 @@
 {% block title %}tattoo — {{ render_date }}{% endblock %}
 {% block content %}
 <h1>tattoo — {{ render_date }}</h1>
-<p class="meta">rendered {{ rendered_at }} · <a href="/archive/">archive</a>
-{%- if shadow_mode %} · <span class="badge warn">shadow mode: nothing suppressed</span>{% endif %}</p>
+<p class="meta">rendered {{ rendered_at }} · <a href="/archive/">archive</a></p>
 
 {% if sections %}
 {% for section in sections %}
 <h2>{{ section.source_name }}</h2>
 {% for entry in section.entries %}
-<div class="item{% if entry.passed is false %} rejected{% endif %}{% if entry.awaiting %} awaiting{% endif %}">
+<div class="item{% if entry.passed is false %} rejected{% endif %}{% if entry.unavailable %} awaiting{% endif %}">
   <h3>
     <a href="{{ entry.url }}">{{ entry.title }}</a>
-    {% if entry.score is not none %}<span class="badge{% if entry.passed %} pass{% endif %}">{{ entry.score }}/10</span>{% endif %}
-    {% if entry.awaiting %}<span class="badge warn">not yet fetched</span>{% endif %}
+    {% if entry.unavailable %}<span class="badge warn">unavailable</span>{% endif %}
     {% if entry.degraded %}<span class="badge warn">degraded</span>{% endif %}
   </h3>
   {% if entry.published_at %}<span class="meta">{{ entry.published_at }}</span>{% endif %}
-  {% if entry.awaiting %}
-  <p class="meta">Content could not be fetched yet, so this item has not been scored. Retried
-  automatically for 3 days.</p>
+  {% if entry.unavailable %}
+  <p class="meta">Content could not be fetched after 3 days of retries.</p>
   {% endif %}
   {% if entry.bluf %}<p class="bluf">{{ entry.bluf }}</p>{% endif %}
   {% if entry.findings %}

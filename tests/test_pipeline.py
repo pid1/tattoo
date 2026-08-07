@@ -4,7 +4,7 @@ run, content is acquired and cached, the gate wires through with shadow
 semantics, and quiet days skip the push."""
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from tattoo import config, judge, pipeline, render, store
 
@@ -247,11 +247,12 @@ def test_gate_judges_and_extracts_survivors(db, monkeypatch):
     assert (run_row["items_judged"], run_row["items_passed"]) == (2, 1)
     assert db.execute("SELECT COUNT(*) AS n FROM extractions").fetchone()["n"] == 1
 
-    # shadow mode (default): the rejected item still renders, with its reason
+    # shadow mode (default): the rejected item still renders, with its reason.
+    # there is no shadow-mode banner -- the reason lines are the signal.
     html = (config.dist_path() / "dashboard" / "index.html").read_text()
     assert "the bottom line." in html
     assert "rejected: because" in html
-    assert "shadow mode" in html
+    assert "shadow mode" not in html
 
 
 def test_gate_live_suppresses_rejections(db, monkeypatch):
@@ -365,21 +366,63 @@ def test_reprocess_rejection_does_not_keep_stale_extraction(db, monkeypatch):
     assert entry["findings"] == []
 
 
-def test_unjudged_item_is_marked_awaiting(db, monkeypatch):
-    """an item whose content was never acquired has no judgment; it must say
-    so rather than rendering as a bare title with no information."""
-    _seed_source(db, threshold=5)
-    _patch_poll(monkeypatch, _entries(1))
-    _patch_gate(monkeypatch, {"item 0": 8})  # keeps the run off the network
-    store.set_setting(db, "anthropic_api_key", "k")
-    pipeline.run("manual")
-    # an unacquired item never reaches the gate; drop the judgment to model that
-    db.execute("DELETE FROM judgments")
+def _unfetched_item(db, first_seen: datetime):
+    """an item that was polled but whose content was never acquired."""
+    db.execute(
+        "INSERT INTO items (source_id, external_id, canonical_url, title, normalized_title,"
+        " published_at, first_seen_at) VALUES (1, 'x', 'https://e/x', 't', 't', ?, ?)",
+        (first_seen.isoformat(timespec="seconds"), first_seen.isoformat(timespec="seconds")),
+    )
     db.commit()
 
-    entry = pipeline._sections_for_today(db, datetime.now(store.local_tz(db)))[0]["entries"][0]
-    assert entry["awaiting"] is True
+
+def test_unfetched_item_inside_retry_window_is_omitted(db):
+    """a transient fetch failure is not information -- the item simply appears
+    on the day it lands, rather than cluttering today's briefing."""
+    _seed_source(db, threshold=5)
+    now = datetime.now(UTC)
+    _unfetched_item(db, now - timedelta(hours=2))
+
+    sections = pipeline._sections_for_today(db, now)
+    assert sections == []
+
+
+def test_unfetched_item_surfaces_once_retry_window_expires(db):
+    """once retries are exhausted the failure is real and must be visible."""
+    _seed_source(db, threshold=5)
+    now = datetime.now(UTC)
+    _unfetched_item(db, now - timedelta(days=pipeline.ACQUIRE_RETRY_DAYS, hours=6))
+
+    entry = pipeline._sections_for_today(db, now)[0]["entries"][0]
+    assert entry["unavailable"] is True
     assert entry["score"] is None
+
+
+def test_late_fetched_item_is_judged_and_rendered(db, monkeypatch):
+    """regression: the gate was bounded to today while acquire retried for 3
+    days, so an item fetched a day late was cached and then never judged --
+    and the page keyed off first_seen, so it could never appear either."""
+    _seed_source(db, threshold=5)
+    yesterday = datetime.now(UTC) - timedelta(days=1)
+    _unfetched_item(db, yesterday)
+    db.execute(
+        "INSERT INTO content (item_id, method, text, fetched_at) VALUES (1, 'feed_body', ?, ?)",
+        ("substantive words. " * 40, datetime.now(UTC).isoformat(timespec="seconds")),
+    )
+    db.commit()
+    _patch_gate(monkeypatch, {"t": 8})
+    store.set_setting(db, "anthropic_api_key", "k")
+
+    pipeline.run("manual")
+
+    judged = db.execute("SELECT COUNT(*) AS n FROM judgments WHERE item_id = 1").fetchone()["n"]
+    assert judged == 1, "item fetched a day late was never judged"
+    titles = [
+        e["title"]
+        for s in pipeline._sections_for_today(db, datetime.now(UTC))
+        for e in s["entries"]
+    ]
+    assert "t" in titles, "item judged today did not reach today's page"
 
 
 def test_locator_urls():

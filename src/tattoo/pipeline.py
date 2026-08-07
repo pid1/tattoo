@@ -374,6 +374,9 @@ def _judge_stage(conn, run_id: int, now: datetime, reprocess: bool) -> tuple[int
                 f"extraction failed: {type(e).__name__}: {e}",
                 level="warn",
                 item_id=item["id"],
+                source=source["display_name"],
+                error_type=type(e).__name__,
+                error=str(e),
             )
     return judged, passed
 
@@ -444,6 +447,8 @@ def _sections_for_today(conn, now: datetime) -> list[dict]:
             # unjudged *and* nothing ever fetched: the retry window expired.
             # unjudged with content is a gate skip, which renders normally.
             "unavailable": judgment is None and not item["has_content"],
+            # set below: passed the gate but the summary could not be produced
+            "extraction_failed": False,
             "bluf": None,
             "findings": [],
         }
@@ -472,6 +477,10 @@ def _sections_for_today(conn, now: datetime) -> list[dict]:
                     (extraction["id"],),
                 )
             ]
+        # passed the gate but produced no summary: the extraction call failed
+        # (malformed json, api error). the item is still worth surfacing --
+        # it cleared the bar -- but the card has to say why it is bare.
+        entry["extraction_failed"] = bool(passed) and not entry["bluf"] and not entry["findings"]
         grouped.setdefault(item["source_name"], []).append(entry)
 
     sections = []

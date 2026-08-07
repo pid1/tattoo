@@ -341,6 +341,47 @@ def test_digest_contains_bluf_and_finding_links(db, monkeypatch):
     assert "<a href=" in digest
 
 
+def test_reprocess_rejection_does_not_keep_stale_extraction(db, monkeypatch):
+    """regression: the extraction lookup was not scoped to the judgment's run,
+    so an item that passed in one run and was rejected on reprocess rendered
+    the old body *and* a 'rejected:' line on the same card."""
+    _seed_source(db, threshold=5)
+    _patch_poll(monkeypatch, _entries(1))
+    _patch_gate(monkeypatch, {"item 0": 8})
+    store.set_setting(db, "anthropic_api_key", "k")
+    pipeline.run("manual")
+
+    sections = pipeline._sections_for_today(db, datetime.now(store.local_tz(db)))
+    assert sections[0]["entries"][0]["bluf"]  # passed, so a body is expected
+
+    # re-score the same cached content below the threshold
+    _patch_gate(monkeypatch, {"item 0": 2})
+    pipeline.reprocess()
+
+    entry = pipeline._sections_for_today(db, datetime.now(store.local_tz(db)))[0]["entries"][0]
+    assert entry["passed"] is False
+    assert entry["score"] == 2
+    assert entry["bluf"] is None, "stale extraction from the earlier run leaked through"
+    assert entry["findings"] == []
+
+
+def test_unjudged_item_is_marked_awaiting(db, monkeypatch):
+    """an item whose content was never acquired has no judgment; it must say
+    so rather than rendering as a bare title with no information."""
+    _seed_source(db, threshold=5)
+    _patch_poll(monkeypatch, _entries(1))
+    _patch_gate(monkeypatch, {"item 0": 8})  # keeps the run off the network
+    store.set_setting(db, "anthropic_api_key", "k")
+    pipeline.run("manual")
+    # an unacquired item never reaches the gate; drop the judgment to model that
+    db.execute("DELETE FROM judgments")
+    db.commit()
+
+    entry = pipeline._sections_for_today(db, datetime.now(store.local_tz(db)))[0]["entries"][0]
+    assert entry["awaiting"] is True
+    assert entry["score"] is None
+
+
 def test_locator_urls():
     assert (
         pipeline._locator_url("youtube", "https://www.youtube.com/watch?v=abc", "412s")

@@ -410,14 +410,28 @@ def _sections_for_today(conn, now: datetime) -> list[dict]:
             "score": judgment["score"] if judgment else None,
             "justification": judgment["justification"] if judgment else None,
             "passed": passed,
+            # no judgment means the content was never acquired (e.g. transcript
+            # fetching halted). say so rather than rendering a bare title that
+            # reads as a broken card.
+            "awaiting": judgment is None,
             "bluf": None,
             "not_answered": None,
             "specifics": [],
             "findings": [],
         }
-        extraction = conn.execute(
-            "SELECT * FROM extractions WHERE item_id = ? ORDER BY id DESC LIMIT 1", (item["id"],)
-        ).fetchone()
+        # scope the extraction to the run that produced this judgment. reprocess
+        # leaves older extractions in place, so an unscoped "latest" pairs a
+        # fresh rejection with a stale body -- the card then shows a full
+        # extraction and a "rejected:" line at the same time.
+        extraction = (
+            conn.execute(
+                "SELECT * FROM extractions WHERE item_id = ? AND run_id = ?"
+                " ORDER BY id DESC LIMIT 1",
+                (item["id"], judgment["run_id"]),
+            ).fetchone()
+            if judgment and passed
+            else None
+        )
         if extraction:
             entry["bluf"] = extraction["bluf"]
             entry["not_answered"] = extraction["not_answered"]

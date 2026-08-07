@@ -318,7 +318,7 @@ def extract_item(conn, run_id: int, item, content_row, source) -> int:
     )
     max_tokens = resolve_max_tokens(conn, "extract_max_tokens", model, EXTRACT_MAX_TOKENS)
     raw, usage = call_llm(conn, run_id, model, system_text, user_text, max_tokens)
-    parsed = _extract_json_object(raw, required_keys=("bluf", "findings", "specifics"))
+    parsed = _extract_json_object(raw, required_keys=("bluf", "findings"))
     input_t, output_t = _usage_tokens(usage)
 
     # an extraction with neither a bluf nor a finding renders as a blank card.

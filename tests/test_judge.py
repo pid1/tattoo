@@ -125,6 +125,46 @@ def test_extract_json_none_raises():
         judge._extract_json_object("no json here")
 
 
+def test_extract_json_strips_code_fence():
+    text = '```json\n{"score": 6, "justification": "ok"}\n```'
+    assert judge._extract_json_object(text, required_keys=("score",))["score"] == 6
+
+
+def test_truncated_extraction_raises_instead_of_returning_inner_object():
+    """regression: the brace scanner used to skip the unbalanced outer object
+    and hand back the first findings element, which stored as an empty row."""
+    truncated = (
+        '{"bluf": "A summary.", "findings": [{"text": "First finding.", '
+        '"locator": "120s"}, {"text": "Second finding that got cut off mid'
+    )
+    with pytest.raises(judge.TruncatedResponse):
+        judge._extract_json_object(truncated, required_keys=("bluf", "findings", "specifics"))
+
+
+def test_required_keys_rejects_inner_object_but_accepts_outer():
+    text = '{"findings": [{"text": "x", "locator": "1s"}], "bluf": "b"}'
+    parsed = judge._extract_json_object(text, required_keys=("bluf", "findings"))
+    assert parsed["bluf"] == "b"
+
+
+def test_model_max_output_known_and_unknown():
+    assert judge.model_max_output("claude-sonnet-5") == 128_000
+    assert judge.model_max_output("claude-haiku-4-5") == 64_000
+    assert judge.model_max_output("some-future-model") == judge.UNKNOWN_MODEL_MAX_OUTPUT
+
+
+def test_resolve_max_tokens_zero_means_model_ceiling(db):
+    store.set_setting(db, "extract_max_tokens", "0")
+    assert judge.resolve_max_tokens(db, "extract_max_tokens", "claude-sonnet-5", 2000) == 128_000
+
+
+def test_resolve_max_tokens_explicit_and_garbage(db):
+    store.set_setting(db, "extract_max_tokens", "12345")
+    assert judge.resolve_max_tokens(db, "extract_max_tokens", "claude-sonnet-5", 2000) == 12345
+    store.set_setting(db, "extract_max_tokens", "not-a-number")
+    assert judge.resolve_max_tokens(db, "extract_max_tokens", "claude-sonnet-5", 2000) == 2000
+
+
 # -- triage ------------------------------------------------------------------
 
 

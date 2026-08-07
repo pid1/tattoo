@@ -32,8 +32,29 @@ PROMPT_NAMES = ("triage_system", "extract_system")
 # the context window or the budget (plan §2)
 MAX_CONTENT_CHARS = 60_000
 
+# per-call output ceilings. these are the defaults only: the settings keys
+# triage_max_tokens / extract_max_tokens override them, and 0 there means
+# "the model's own maximum" (see resolve_max_tokens). the api requires
+# max_tokens on every call, so there is no literal unlimited -- the model
+# ceiling is as close as it gets. billing is on tokens actually produced,
+# not on the cap, so raising it costs nothing until output actually grows.
 TRIAGE_MAX_TOKENS = 1000
 EXTRACT_MAX_TOKENS = 2000
+
+# max output tokens per model (docs, 2026-08). a cap above the model's own
+# limit is a 400, so an unknown model falls back to a value every current
+# model accepts rather than guessing high.
+MODEL_MAX_OUTPUT = {
+    "claude-opus-5": 128_000,
+    "claude-fable-5": 128_000,
+    "claude-opus-4-8": 128_000,
+    "claude-opus-4-7": 128_000,
+    "claude-opus-4-6": 128_000,
+    "claude-sonnet-5": 128_000,
+    "claude-sonnet-4-6": 128_000,
+    "claude-haiku-4-5": 64_000,
+}
+UNKNOWN_MODEL_MAX_OUTPUT = 8192
 
 DEFAULT_RUN_TOKEN_BUDGET = 300_000
 
@@ -45,6 +66,38 @@ GENERIC_CRITERIA = (
 
 class BudgetExceeded(RuntimeError):
     """the run crossed its token budget; abort loudly (plan §9)."""
+
+
+class TruncatedResponse(RuntimeError):
+    """the model hit max_tokens mid-json. distinct from a merely malformed
+    response because the fix is a bigger ceiling, not a better prompt."""
+
+
+def model_max_output(model: str) -> int:
+    limit = MODEL_MAX_OUTPUT.get((model or "").strip())
+    if limit is None:
+        log(
+            "judge",
+            "unknown model, capping output conservatively",
+            level="warn",
+            model=model,
+            max_tokens=UNKNOWN_MODEL_MAX_OUTPUT,
+        )
+        return UNKNOWN_MODEL_MAX_OUTPUT
+    return limit
+
+
+def resolve_max_tokens(conn, key: str, model: str, default: int) -> int:
+    """settings value wins; 0 means the model's own ceiling; anything
+    unparseable falls back to the default rather than failing the run."""
+    raw = store.get_setting(conn, key, str(default))
+    try:
+        value = int(str(raw).strip())
+    except ValueError:
+        return default
+    if value == 0:
+        return model_max_output(model)
+    return value if value > 0 else default
 
 
 # -- prompt versioning (rally's history + pointer pattern) -----------------
@@ -156,6 +209,14 @@ def call_llm(
     text = "".join(b.get("text", "") for b in resp.get("content", []) if b.get("type") == "text")
     if not text:
         raise RuntimeError(f"empty response from {model}")
+
+    # a max_tokens stop means the json is cut mid-structure. surfacing it here
+    # keeps the diagnosis one log line away instead of an empty extraction.
+    if resp.get("stop_reason") == "max_tokens":
+        raise TruncatedResponse(
+            f"{model} hit max_tokens={max_tokens} mid-response; raise the ceiling "
+            "(0 = model maximum) in settings"
+        )
     return text, usage
 
 
@@ -203,8 +264,9 @@ def triage_item(conn, run_id: int, item, content_row, source) -> dict:
     model = store.get_setting(conn, "triage_model")
 
     user_text = _triage_user_prompt(item, content_row, source)
-    raw, usage = call_llm(conn, run_id, model, system_text, user_text, TRIAGE_MAX_TOKENS)
-    parsed = _extract_json_object(raw)
+    max_tokens = resolve_max_tokens(conn, "triage_max_tokens", model, TRIAGE_MAX_TOKENS)
+    raw, usage = call_llm(conn, run_id, model, system_text, user_text, max_tokens)
+    parsed = _extract_json_object(raw, required_keys=("score", "justification"))
     input_t, output_t = _usage_tokens(usage)
 
     score = max(0, min(10, int(parsed.get("score", 0))))
@@ -253,9 +315,15 @@ def extract_item(conn, run_id: int, item, content_row, source) -> int:
         f"TITLE: {item['title']}\n"
         f"CONTENT:\n{content_row['text'][:MAX_CONTENT_CHARS]}"
     )
-    raw, usage = call_llm(conn, run_id, model, system_text, user_text, EXTRACT_MAX_TOKENS)
-    parsed = _extract_json_object(raw)
+    max_tokens = resolve_max_tokens(conn, "extract_max_tokens", model, EXTRACT_MAX_TOKENS)
+    raw, usage = call_llm(conn, run_id, model, system_text, user_text, max_tokens)
+    parsed = _extract_json_object(raw, required_keys=("bluf", "findings", "specifics"))
     input_t, output_t = _usage_tokens(usage)
+
+    # an extraction with neither a bluf nor a finding renders as a blank card.
+    # fail loudly so the pipeline logs and skips instead of storing the hole.
+    if not str(parsed.get("bluf", "")).strip() and not parsed.get("findings"):
+        raise ValueError("extraction had no bluf and no findings")
 
     now = datetime.now(UTC).isoformat(timespec="seconds")
     cur = conn.execute(
@@ -291,19 +359,49 @@ def extract_item(conn, run_id: int, item, content_row, source) -> int:
 # -- json parsing ------------------------------------------------------------
 
 
-def _extract_json_object(text: str) -> dict:
-    """strict parse first, then fall back to the first balanced top-level
-    object in arbitrary text (rally's pattern) -- models occasionally wrap
-    json in prose despite instructions."""
+def _strip_code_fence(text: str) -> str:
+    """models wrap json in ```json fences often enough to handle directly
+    rather than leaving it to the brace scanner."""
+    stripped = text.strip()
+    if not stripped.startswith("```"):
+        return text
+    body = stripped[3:]
+    if body[:4].lower().startswith("json"):
+        body = body[4:]
+    end = body.rfind("```")
+    return body[:end] if end != -1 else body
+
+
+def _extract_json_object(text: str, required_keys: tuple[str, ...] = ()) -> dict:
+    """strict parse first, then fall back to the first balanced object in
+    arbitrary text (rally's pattern) -- models occasionally wrap json in
+    prose despite instructions.
+
+    required_keys guards the fallback. without it a truncated response makes
+    the scanner skip the unbalanced outer object and return the first inner
+    one -- for an extraction, a lone {"text", "locator"} findings element,
+    which has none of the fields the caller reads and so lands in the db as
+    a silently empty row. demanding a recognisable key turns that into a
+    raised error the pipeline logs and skips.
+    """
+    text = _strip_code_fence(text)
+
+    def acceptable(candidate: object) -> bool:
+        if not isinstance(candidate, dict):
+            return False
+        return not required_keys or any(k in candidate for k in required_keys)
+
     try:
         parsed = json.loads(text)
-        if isinstance(parsed, dict):
+        if acceptable(parsed):
             return parsed
     except ValueError:
         pass
     start = text.find("{")
+    saw_unclosed = False
     while start != -1:
         depth = 0
+        closed = False
         in_string = False
         escape = False
         for i in range(start, len(text)):
@@ -320,11 +418,17 @@ def _extract_json_object(text: str) -> dict:
                 elif ch == "}":
                     depth -= 1
                     if depth == 0:
+                        closed = True
                         try:
                             candidate = json.loads(text[start : i + 1])
-                            if isinstance(candidate, dict):
+                            if acceptable(candidate):
                                 return candidate
                         except ValueError:
-                            break
+                            pass
+                        break
+        saw_unclosed = saw_unclosed or not closed
         start = text.find("{", start + 1)
+    if saw_unclosed:
+        # an object opened and never closed: the response is cut off, not prose
+        raise TruncatedResponse(f"json object never closed (truncated): {text[-200:]!r}")
     raise ValueError(f"no json object found in model output: {text[:200]!r}")

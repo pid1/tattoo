@@ -63,6 +63,18 @@
     <input type="text" id="extract-model" placeholder="claude-sonnet-5">
   </div>
   <div class="form-group">
+    <label for="triage-max-tokens">Triage max output tokens</label>
+    <input type="text" inputmode="numeric" id="triage-max-tokens">
+    <small>Per-call output ceiling for pass 1. 0 = the model's own maximum. Too low and the
+    scored JSON is cut off and the item is skipped.</small>
+  </div>
+  <div class="form-group">
+    <label for="extract-max-tokens">Extraction max output tokens</label>
+    <input type="text" inputmode="numeric" id="extract-max-tokens">
+    <small>Per-call output ceiling for pass 2. 0 = the model's own maximum. Dense items need
+    headroom; you are billed on tokens produced, not on the cap.</small>
+  </div>
+  <div class="form-group">
     <label for="run-token-budget">Run token budget</label>
     <input type="text" inputmode="numeric" id="run-token-budget">
     <small>Hard per-run ceiling (input+output tokens); the run aborts loudly past it. 0
@@ -196,6 +208,8 @@ const SETTING_FIELDS = {
   "page_url": "page-url",
   "triage_model": "triage-model",
   "extract_model": "extract-model",
+  "triage_max_tokens": "triage-max-tokens",
+  "extract_max_tokens": "extract-max-tokens",
   "run_token_budget": "run-token-budget",
   "retention_days": "retention-days",
 };

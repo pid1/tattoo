@@ -23,4 +23,6 @@ EXPOSE 8000
 VOLUME /data
 VOLUME /dist
 # no HEALTHCHECK by decision (plan §9): logs are the observability surface
-CMD ["uvicorn", "tattoo.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# started in-process rather than via the uvicorn CLI so the json log config
+# is installed before the server configures its own plain-text logging
+CMD ["python", "-m", "tattoo.serve"]

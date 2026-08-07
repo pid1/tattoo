@@ -436,3 +436,46 @@ def test_locator_urls():
     )
     assert pipeline._locator_url("web", "https://e/a", None) == "https://e/a"
     assert pipeline._locator_url("youtube", "https://e/a", "garbage") == "https://e/a"
+
+
+def test_passed_item_without_extraction_is_labelled(db, monkeypatch):
+    """a passed item whose extraction call failed renders bare; with scores
+    gone it is otherwise indistinguishable from a broken card."""
+    _seed_source(db, threshold=5)
+    _patch_poll(monkeypatch, _entries(1))
+    _patch_gate(monkeypatch, {"item 0": 8})
+    store.set_setting(db, "anthropic_api_key", "k")
+    monkeypatch.setattr(
+        judge, "extract_item", lambda *a, **k: (_ for _ in ()).throw(ValueError("boom"))
+    )
+    pipeline.run("manual")
+
+    entry = pipeline._sections_for_today(db, datetime.now(store.local_tz(db)))[0]["entries"][0]
+    assert entry["passed"] is True
+    assert entry["bluf"] is None
+    assert entry["extraction_failed"] is True
+
+    html = (config.dist_path() / "dashboard" / "index.html").read_text()
+    assert "no summary" in html
+
+
+def test_extraction_failure_log_carries_filterable_fields(db, monkeypatch, capsys):
+    """the log pipeline should be able to filter on error_type, not grep a
+    formatted message string."""
+    _seed_source(db, threshold=5)
+    _patch_poll(monkeypatch, _entries(1))
+    _patch_gate(monkeypatch, {"item 0": 8})
+    store.set_setting(db, "anthropic_api_key", "k")
+    monkeypatch.setattr(
+        judge, "extract_item", lambda *a, **k: (_ for _ in ()).throw(ValueError("boom"))
+    )
+    pipeline.run("manual")
+
+    lines = [
+        json.loads(line)
+        for line in capsys.readouterr().out.splitlines()
+        if line.startswith("{") and '"extraction failed' in line
+    ]
+    assert lines and lines[0]["error_type"] == "ValueError"
+    assert lines[0]["error"] == "boom"
+    assert lines[0]["source"] == "example"

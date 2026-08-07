@@ -12,11 +12,16 @@
   <h3>
     <a href="{{ entry.url }}">{{ entry.title }}</a>
     {% if entry.unavailable %}<span class="badge warn">unavailable</span>{% endif %}
+    {% if entry.extraction_failed %}<span class="badge warn">no summary</span>{% endif %}
     {% if entry.degraded %}<span class="badge warn">degraded</span>{% endif %}
   </h3>
   {% if entry.published_at %}<span class="meta">{{ entry.published_at }}</span>{% endif %}
   {% if entry.unavailable %}
   <p class="meta">Content could not be fetched after 3 days of retries.</p>
+  {% endif %}
+  {% if entry.extraction_failed %}
+  <p class="meta">Passed the filter, but the summary could not be generated. Open the link
+  directly.</p>
   {% endif %}
   {% if entry.bluf %}<p class="bluf">{{ entry.bluf }}</p>{% endif %}
   {% if entry.findings %}

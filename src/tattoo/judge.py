@@ -17,6 +17,7 @@ budget raises BudgetExceeded, which the pipeline turns into a loud abort.
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, datetime
 
 from tattoo import config, store
@@ -372,6 +373,26 @@ def _strip_code_fence(text: str) -> str:
     return body[:end] if end != -1 else body
 
 
+_VALID_JSON_ESCAPES = set('"\\/bfnrtu')
+
+
+def _repair_json_escapes(text: str) -> str:
+    """drop backslashes that json does not permit as escapes. models reach
+    for python/js habits -- \\' inside a double-quoted string is the common
+    one -- which fails json.loads even though the object is complete.
+
+    the regex consumes backslash pairs left to right, so a legitimate \\\\
+    is matched as a unit and preserved rather than having its second
+    backslash mistaken for the start of a bad escape.
+    """
+    return re.sub(
+        r"\\(.)",
+        lambda m: m.group(0) if m.group(1) in _VALID_JSON_ESCAPES else m.group(1),
+        text,
+        flags=re.S,
+    )
+
+
 def _extract_json_object(text: str, required_keys: tuple[str, ...] = ()) -> dict:
     """strict parse first, then fall back to the first balanced object in
     arbitrary text (rally's pattern) -- models occasionally wrap json in
@@ -391,13 +412,16 @@ def _extract_json_object(text: str, required_keys: tuple[str, ...] = ()) -> dict
             return False
         return not required_keys or any(k in candidate for k in required_keys)
 
-    try:
-        parsed = json.loads(text)
+    for candidate_text in (text, _repair_json_escapes(text)):
+        try:
+            parsed = json.loads(candidate_text)
+        except ValueError:
+            continue
         if acceptable(parsed):
             return parsed
-    except ValueError:
-        pass
+
     start = text.find("{")
+    first_candidate_closed = True
     saw_unclosed = False
     while start != -1:
         depth = 0
@@ -419,16 +443,23 @@ def _extract_json_object(text: str, required_keys: tuple[str, ...] = ()) -> dict
                     depth -= 1
                     if depth == 0:
                         closed = True
-                        try:
-                            candidate = json.loads(text[start : i + 1])
+                        slice_ = text[start : i + 1]
+                        for attempt in (slice_, _repair_json_escapes(slice_)):
+                            try:
+                                candidate = json.loads(attempt)
+                            except ValueError:
+                                continue
                             if acceptable(candidate):
                                 return candidate
-                        except ValueError:
-                            pass
                         break
+        if start == text.find("{"):
+            first_candidate_closed = closed
         saw_unclosed = saw_unclosed or not closed
         start = text.find("{", start + 1)
-    if saw_unclosed:
-        # an object opened and never closed: the response is cut off, not prose
+
+    # only the first object failing to close means the response was cut off.
+    # a later unclosed brace is just a stray "{" in trailing prose, and a
+    # closed-but-unparseable object is malformed rather than truncated.
+    if not first_candidate_closed and saw_unclosed:
         raise TruncatedResponse(f"json object never closed (truncated): {text[-200:]!r}")
-    raise ValueError(f"no json object found in model output: {text[:200]!r}")
+    raise ValueError(f"no usable json object in model output: {text[:200]!r}")

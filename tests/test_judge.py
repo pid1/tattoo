@@ -147,6 +147,36 @@ def test_required_keys_rejects_inner_object_but_accepts_outer():
     assert parsed["bluf"] == "b"
 
 
+def test_repairs_invalid_backslash_escape():
+    """regression: a model wrote doesn\\'t inside a string. \\' is not a legal
+    json escape, so the complete object failed json.loads and the item was
+    dropped even though nothing was truncated."""
+    text = '{"bluf": "The video doesn\\\'t explain it.", "findings": [], "specifics": []}'
+    parsed = judge._extract_json_object(text, required_keys=("bluf", "findings", "specifics"))
+    assert parsed["bluf"] == "The video doesn't explain it."
+
+
+def test_escape_repair_preserves_legitimate_escapes():
+    raw = '{"bluf": "a\\\\b", "note": "line\\nbreak", "q": "say \\"hi\\"", "findings": []}'
+    parsed = judge._extract_json_object(raw, required_keys=("bluf",))
+    assert parsed["bluf"] == "a\\b"
+    assert parsed["note"] == "line\nbreak"
+    assert parsed["q"] == 'say "hi"'
+
+
+def test_escape_repair_does_not_corrupt_trailing_backslash_pair():
+    # "\\" followed by an apostrophe is valid json; the repair must not eat it
+    assert judge._repair_json_escapes(r'"a\\" ') == r'"a\\" '
+    assert judge._repair_json_escapes(r"doesn\'t") == "doesn't"
+
+
+def test_malformed_but_closed_is_not_reported_as_truncated():
+    text = '{"bluf": "x", "findings": [, ], "specifics": []}'
+    with pytest.raises(ValueError) as exc:
+        judge._extract_json_object(text, required_keys=("bluf", "findings", "specifics"))
+    assert not isinstance(exc.value, judge.TruncatedResponse)
+
+
 def test_model_max_output_known_and_unknown():
     assert judge.model_max_output("claude-sonnet-5") == 128_000
     assert judge.model_max_output("claude-haiku-4-5") == 64_000

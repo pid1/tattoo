@@ -121,6 +121,76 @@ def test_cap_keeps_newest_items(db, monkeypatch):
     assert titles == {"item 4", "item 3"}
 
 
+# -- first-run backfill limit ------------------------------------------------
+
+
+def test_first_poll_takes_only_the_newest_few(db, monkeypatch):
+    """a source's first poll ingests FIRST_RUN_ITEM_LIMIT items, not the
+    feed's whole back catalogue, and stamps the boundary it used."""
+    _seed_source(db, cap=10)
+    _patch_poll(monkeypatch, _entries(9))
+    pipeline.run("manual")
+
+    titles = {r["title"] for r in db.execute("SELECT title FROM items")}
+    assert titles == {"item 8", "item 7", "item 6"}
+    src = db.execute("SELECT * FROM sources").fetchone()
+    assert src["backfill_cutoff"] == "2026-08-06T06:00:00+00:00"  # oldest of the three
+
+
+def test_archive_never_drips_in_after_the_first_poll(db, monkeypatch):
+    """the churn this exists to stop: items older than the first poll's
+    cutoff stay out on every later run, however much daily budget is free."""
+    _seed_source(db, cap=10)
+    _patch_poll(monkeypatch, _entries(9))
+    pipeline.run("manual")
+
+    # same nine, plus one genuinely new item published after the first poll
+    newer = _entries(9) + [
+        {
+            "external_id": "item-new",
+            "url": "https://example.com/item-new",
+            "title": "brand new",
+            "author": None,
+            "published_at": "2026-08-07T09:00:00+00:00",
+            "feed_body_html": LONG_BODY,
+            "summary_html": "<p>summary.</p>",
+        }
+    ]
+    _patch_poll(monkeypatch, newer, etag="e2")
+    pipeline.run("manual")
+
+    titles = {r["title"] for r in db.execute("SELECT title FROM items")}
+    assert titles == {"item 8", "item 7", "item 6", "brand new"}
+
+
+def test_undated_entries_survive_the_cutoff(db, monkeypatch):
+    """an entry with no publication date cannot be placed in history, so it
+    is admitted once rather than dropped forever."""
+    _seed_source(db, cap=10)
+    _patch_poll(monkeypatch, _entries(3))
+    pipeline.run("manual")
+
+    undated = _entries(1, prefix="undated")
+    undated[0]["published_at"] = None
+    _patch_poll(monkeypatch, undated, etag="e2")
+    pipeline.run("manual")
+
+    assert db.execute("SELECT COUNT(*) AS n FROM items").fetchone()["n"] == 4
+
+
+def test_first_poll_with_no_entries_stays_a_first_poll(db, monkeypatch):
+    """an empty or not-modified first poll must not stamp a cutoff -- the
+    source has not had its first run yet."""
+    _seed_source(db)
+    _patch_poll(monkeypatch, [])
+    pipeline.run("manual")
+    assert db.execute("SELECT backfill_cutoff FROM sources").fetchone()["backfill_cutoff"] is None
+
+    _patch_poll(monkeypatch, _entries(9), etag="e2")
+    pipeline.run("manual")
+    assert db.execute("SELECT COUNT(*) AS n FROM items").fetchone()["n"] == 3
+
+
 def test_failing_source_never_fails_run(db, monkeypatch):
     _seed_source(db, name="good", feed="https://good.example/feed")
     _seed_source(db, name="bad", feed="https://bad.example/feed")

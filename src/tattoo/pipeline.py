@@ -27,6 +27,12 @@ ADAPTERS = {"web": web, "youtube": youtube}
 # long -- after that the moment has passed and the feed summary suffices
 ACQUIRE_RETRY_DAYS = 3
 
+# a source's first poll takes only its newest few items. a feed's back
+# catalogue is history, not news: judging it costs real tokens for items
+# nobody asked about, and without this the daily cap simply meters the
+# archive through a few items per day for weeks (plan §3).
+FIRST_RUN_ITEM_LIMIT = 3
+
 
 def run(reason: str = "scheduled") -> None:
     conn = database.connect()
@@ -177,6 +183,12 @@ def _ingest(conn, src, entries: list[dict], now: datetime) -> list[tuple[int, di
         seen_batch.add(eid)
         fresh.append(entry)
 
+    # newest first so every limit below keeps the most recent items
+    fresh.sort(key=lambda e: e["published_at"] or "", reverse=True)
+    first_seen = datetime.now(UTC).isoformat(timespec="seconds")
+    first_run = src["backfill_cutoff"] is None
+    candidates = _within_backfill_window(src, fresh, first_run)
+
     # daily cap counts everything already ingested today, not just this run,
     # so re-runs cannot multiply the budget (plan §3)
     day_start = _local_day_start_utc(now)
@@ -186,21 +198,18 @@ def _ingest(conn, src, entries: list[dict], now: datetime) -> list[tuple[int, di
     ).fetchone()["n"]
     budget = max(0, src["daily_item_cap"] - used_today)
 
-    # newest first so the cap keeps the most recent items
-    fresh.sort(key=lambda e: e["published_at"] or "", reverse=True)
-    taken = fresh[:budget]
-    if len(taken) < len(fresh):
+    taken = candidates[:budget]
+    if len(taken) < len(candidates):
         # no silent caps: dropped items must be visible in the log
         log(
             "poll",
             "daily cap reached, dropping items",
             level="warn",
             source=src["display_name"],
-            dropped=len(fresh) - len(taken),
+            dropped=len(candidates) - len(taken),
             cap=src["daily_item_cap"],
         )
 
-    first_seen = datetime.now(UTC).isoformat(timespec="seconds")
     ingested = []
     for entry in taken:
         cur = conn.execute(
@@ -220,8 +229,58 @@ def _ingest(conn, src, entries: list[dict], now: datetime) -> list[tuple[int, di
             ),
         )
         ingested.append((cur.lastrowid, entry))
+
+    if first_run and candidates:
+        # stamp the boundary from the window the first run selected, not from
+        # what the cap let through: an item the cap dropped today is dropped,
+        # not deferred into tomorrow's budget as more archive.
+        conn.execute(
+            "UPDATE sources SET backfill_cutoff = ? WHERE id = ?",
+            (_backfill_cutoff(candidates, first_seen), src["id"]),
+        )
     conn.commit()
     return ingested
+
+
+def _within_backfill_window(src, fresh: list[dict], first_run: bool) -> list[dict]:
+    """the first poll of a source keeps its newest FIRST_RUN_ITEM_LIMIT
+    entries; every later poll keeps only what was published at or after the
+    cutoff that first poll stamped. an entry with no publication date is
+    kept either way -- it cannot be placed in history, and the external_id
+    dedupe means admitting it costs one judgment, once."""
+    if first_run:
+        window = fresh[:FIRST_RUN_ITEM_LIMIT]
+        if len(window) < len(fresh):
+            log(
+                "poll",
+                "first poll of this source, ingesting only the newest items",
+                source=src["display_name"],
+                kept=len(window),
+                skipped=len(fresh) - len(window),
+            )
+        return window
+
+    cutoff = src["backfill_cutoff"]
+    # both sides are utc isoformat from the adapters' _published_iso, so the
+    # string compare is a time compare
+    window = [e for e in fresh if not e["published_at"] or e["published_at"] >= cutoff]
+    if len(window) < len(fresh):
+        log(
+            "poll",
+            "skipping items published before this source's first poll",
+            source=src["display_name"],
+            skipped=len(fresh) - len(window),
+            cutoff=cutoff,
+        )
+    return window
+
+
+def _backfill_cutoff(window: list[dict], polled_at: str) -> str:
+    """the oldest publication date in the first run's window: everything in
+    the window is stored now, everything older stays out for good. a window
+    with no dates at all falls back to the poll time."""
+    dated = [e["published_at"] for e in window if e["published_at"]]
+    return min(dated) if dated else polled_at
 
 
 # -- stage 4: acquire ------------------------------------------------------

@@ -5,259 +5,262 @@
    their own styles to stay self-contained -- this file is /settings only. */
 
 :root {
-	color-scheme: light dark;
-	--bg: #ffffff;
-	--fg: #1a1a1a;
-	--muted: #6b6b6b;
-	--rule: #dddddd;
-	--accent: #0a5ad4;
-	--card: #f6f6f6;
-	--warn: #9a6700;
-	--danger: #b3261e;
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #6b6b6b;
+  --rule: #dddddd;
+  --accent: #0a5ad4;
+  --card: #f6f6f6;
+  --warn: #9a6700;
+  --danger: #b3261e;
 }
 @media (prefers-color-scheme: dark) {
-	:root {
-		--bg: #121212;
-		--fg: #e6e6e6;
-		--muted: #9a9a9a;
-		--rule: #333333;
-		--accent: #6ea8fe;
-		--card: #1d1d1d;
-		--warn: #d4a72c;
-		--danger: #f2b8b5;
-	}
+  :root {
+    --bg: #121212;
+    --fg: #e6e6e6;
+    --muted: #9a9a9a;
+    --rule: #333333;
+    --accent: #6ea8fe;
+    --card: #1d1d1d;
+    --warn: #d4a72c;
+    --danger: #f2b8b5;
+  }
 }
 :root[data-theme="light"] {
-	--bg: #ffffff;
-	--fg: #1a1a1a;
-	--muted: #6b6b6b;
-	--rule: #dddddd;
-	--accent: #0a5ad4;
-	--card: #f6f6f6;
-	--warn: #9a6700;
-	--danger: #b3261e;
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #6b6b6b;
+  --rule: #dddddd;
+  --accent: #0a5ad4;
+  --card: #f6f6f6;
+  --warn: #9a6700;
+  --danger: #b3261e;
 }
 :root[data-theme="dark"] {
-	--bg: #121212;
-	--fg: #e6e6e6;
-	--muted: #9a9a9a;
-	--rule: #333333;
-	--accent: #6ea8fe;
-	--card: #1d1d1d;
-	--warn: #d4a72c;
-	--danger: #f2b8b5;
+  --bg: #121212;
+  --fg: #e6e6e6;
+  --muted: #9a9a9a;
+  --rule: #333333;
+  --accent: #6ea8fe;
+  --card: #1d1d1d;
+  --warn: #d4a72c;
+  --danger: #f2b8b5;
 }
 
 * {
-	box-sizing: border-box;
+  box-sizing: border-box;
 }
 body {
-	font-family:
-		"Atkinson Hyperlegible Next", -apple-system, BlinkMacSystemFont, "Segoe UI",
-		sans-serif;
-	background: var(--bg);
-	color: var(--fg);
-	max-width: 640px;
-	margin: 0 auto;
-	padding: 16px;
-	padding-bottom: calc(24px + env(safe-area-inset-bottom));
-	line-height: 1.55;
-	font-size: 16px;
+  font-family:
+    "Atkinson Hyperlegible Next",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  line-height: 1.55;
+  font-size: 16px;
 }
 h1 {
-	font-size: 1.35rem;
-	margin: 0 0 1rem;
+  font-size: 1.35rem;
+  margin: 0 0 1rem;
 }
 h2 {
-	font-size: 1.05rem;
-	margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+  margin: 0 0 0.5rem;
 }
 a {
-	color: var(--accent);
-	overflow-wrap: anywhere;
+  color: var(--accent);
+  overflow-wrap: anywhere;
 }
 .meta {
-	color: var(--muted);
-	font-size: 0.85rem;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 /* sections */
 .border-container {
-	border: 1px solid var(--rule);
-	border-radius: 6px;
-	padding: 16px;
-	margin-bottom: 20px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 20px;
 }
 
 /* forms -- 16px inputs so ios safari never zoom-jumps (plan §8) */
 .form-group {
-	margin-bottom: 14px;
+  margin-bottom: 14px;
 }
 .form-group label {
-	display: block;
-	font-weight: 700;
-	margin-bottom: 4px;
+  display: block;
+  font-weight: 700;
+  margin-bottom: 4px;
 }
 .form-group small {
-	display: block;
-	color: var(--muted);
-	margin-top: 3px;
+  display: block;
+  color: var(--muted);
+  margin-top: 3px;
 }
 input,
 select,
 textarea {
-	width: 100%;
-	font-size: 16px;
-	font-family: inherit;
-	color: var(--fg);
-	background: var(--bg);
-	border: 1px solid var(--rule);
-	border-radius: 5px;
-	padding: 10px;
+  width: 100%;
+  font-size: 16px;
+  font-family: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 10px;
 }
 textarea {
-	min-height: 7rem;
-	field-sizing: content; /* grows with content where supported */
-	resize: vertical;
+  min-height: 7rem;
+  field-sizing: content; /* grows with content where supported */
+  resize: vertical;
 }
 input:focus,
 select:focus,
 textarea:focus {
-	outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent);
 }
 
 /* buttons -- 44px minimum touch targets */
 .btn {
-	display: inline-block;
-	min-height: 44px;
-	min-width: 44px;
-	padding: 10px 16px;
-	font-size: 16px;
-	font-family: inherit;
-	border: 1px solid var(--rule);
-	border-radius: 6px;
-	background: var(--card);
-	color: var(--fg);
-	cursor: pointer;
-	margin-right: 8px;
-	margin-bottom: 8px;
+  display: inline-block;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 10px 16px;
+  font-size: 16px;
+  font-family: inherit;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--fg);
+  cursor: pointer;
+  margin-right: 8px;
+  margin-bottom: 8px;
 }
 .btn-primary {
-	background: var(--accent);
-	border-color: var(--accent);
-	color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
 }
 .btn-danger {
-	color: var(--danger);
-	border-color: var(--danger);
-	background: transparent;
+  color: var(--danger);
+  border-color: var(--danger);
+  background: transparent;
 }
 .btn:disabled {
-	opacity: 0.5;
-	cursor: default;
+  opacity: 0.5;
+  cursor: default;
 }
 
 /* inline status feedback (replaces rally's alert()) */
 .status {
-	display: inline-block;
-	margin-left: 4px;
-	font-size: 0.9rem;
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 0.9rem;
 }
 .status.ok {
-	color: var(--accent);
+  color: var(--accent);
 }
 .status.err {
-	color: var(--danger);
+  color: var(--danger);
 }
 
 /* source cards -- stacked, never a table (plan §8) */
 .source-card {
-	border: 1px solid var(--rule);
-	border-radius: 6px;
-	padding: 12px;
-	margin-bottom: 12px;
-	background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 12px;
+  background: var(--card);
 }
 .source-card.disabled {
-	opacity: 0.6;
+  opacity: 0.6;
 }
 .source-card h3 {
-	margin: 0 0 4px;
-	font-size: 1rem;
+  margin: 0 0 4px;
+  font-size: 1rem;
 }
 .source-stats {
-	color: var(--muted);
-	font-size: 0.85rem;
-	margin: 4px 0 8px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 4px 0 8px;
 }
 .source-edit {
-	margin-top: 10px;
-	border-top: 1px solid var(--rule);
-	padding-top: 10px;
+  margin-top: 10px;
+  border-top: 1px solid var(--rule);
+  padding-top: 10px;
 }
 /* destructive control kept visually and spatially away from routine ones */
 .purge-zone {
-	margin-top: 14px;
-	text-align: right;
+  margin-top: 14px;
+  text-align: right;
 }
 
 /* confirmation card for the add flow */
 .resolve-card {
-	border: 1px solid var(--accent);
-	border-radius: 6px;
-	padding: 12px;
-	margin-top: 10px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 12px;
+  margin-top: 10px;
 }
 .resolve-card ul {
-	margin: 6px 0;
-	padding-left: 1.2rem;
+  margin: 6px 0;
+  padding-left: 1.2rem;
 }
 
 /* prompt history */
 details.history {
-	margin-top: 8px;
+  margin-top: 8px;
 }
 details.history summary {
-	cursor: pointer;
-	min-height: 44px;
-	display: flex;
-	align-items: center;
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
 }
 .history-item {
-	border: 1px solid var(--rule);
-	border-radius: 5px;
-	padding: 8px;
-	margin: 8px 0;
-	font-size: 0.9rem;
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 8px;
+  margin: 8px 0;
+  font-size: 0.9rem;
 }
 .history-item.current {
-	border-color: var(--accent);
+  border-color: var(--accent);
 }
 .history-item pre {
-	white-space: pre-wrap;
-	overflow-wrap: anywhere;
-	max-height: 10rem;
-	overflow-y: auto;
-	background: var(--card);
-	padding: 6px;
-	border-radius: 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 10rem;
+  overflow-y: auto;
+  background: var(--card);
+  padding: 6px;
+  border-radius: 4px;
 }
 
 /* sticky save within thumb reach */
 .sticky-save {
-	position: sticky;
-	bottom: 0;
-	background: var(--bg);
-	padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
-	border-top: 1px solid var(--rule);
+  position: sticky;
+  bottom: 0;
+  background: var(--bg);
+  padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--rule);
 }
 
 .hidden {
-	display: none !important;
+  display: none !important;
 }
 
 @media (min-width: 640px) {
-	body {
-		padding: 24px;
-	}
+  body {
+    padding: 24px;
+  }
 }

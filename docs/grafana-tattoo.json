@@ -1,68 +1,68 @@
 {
-	"__comment": "starter dashboard for the alloy/loki stack (plan §9). panels query the container's structured json logs; adjust the loki datasource uid and the container label selector to match the nas. the tuning panels (scores, rejections, token spend per source) read the judge/poll/pipeline subsystem events.",
-	"title": "tattoo",
-	"tags": ["tattoo"],
-	"timezone": "browser",
-	"time": { "from": "now-30d", "to": "now" },
-	"panels": [
-		{
-			"title": "runs (status over time)",
-			"type": "logs",
-			"gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
-			"targets": [
-				{
-					"expr": "{container=\"tattoo\"} | json | subsystem = `pipeline` | msg = `run finished`"
-				}
-			]
-		},
-		{
-			"title": "items judged vs passed per run",
-			"type": "timeseries",
-			"gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-			"targets": [
-				{
-					"expr": "sum by (status) (count_over_time({container=\"tattoo\"} | json | subsystem = `judge` | msg = `triaged` [1d]))",
-					"legendFormat": "judged"
-				},
-				{
-					"expr": "sum (count_over_time({container=\"tattoo\"} | json | subsystem = `judge` | msg = `triaged` | passed = `true` [1d]))",
-					"legendFormat": "passed"
-				}
-			]
-		},
-		{
-			"title": "triage scores by source (tuning instrument)",
-			"type": "timeseries",
-			"gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-			"targets": [
-				{
-					"expr": "avg by (source) (avg_over_time({container=\"tattoo\"} | json | subsystem = `judge` | msg = `triaged` | unwrap score [1d]))",
-					"legendFormat": "{{source}}"
-				}
-			]
-		},
-		{
-			"title": "acquisition method per item (bad extraction shows up here)",
-			"type": "timeseries",
-			"gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
-			"targets": [
-				{
-					"expr": "sum by (method) (count_over_time({container=\"tattoo\"} | json | subsystem = `acquire` | msg = `content stored` [1d]))",
-					"legendFormat": "{{method}}"
-				}
-			]
-		},
-		{
-			"title": "warnings and errors",
-			"type": "logs",
-			"gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
-			"targets": [
-				{
-					"expr": "{container=\"tattoo\"} | json | level =~ `warn|error`"
-				}
-			]
-		}
-	],
-	"schemaVersion": 39,
-	"version": 1
+  "__comment": "starter dashboard for the alloy/loki stack (plan §9). panels query the container's structured json logs; adjust the loki datasource uid and the container label selector to match the nas. the tuning panels (scores, rejections, token spend per source) read the judge/poll/pipeline subsystem events.",
+  "title": "tattoo",
+  "tags": ["tattoo"],
+  "timezone": "browser",
+  "time": { "from": "now-30d", "to": "now" },
+  "panels": [
+    {
+      "title": "runs (status over time)",
+      "type": "logs",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "{container=\"tattoo\"} | json | subsystem = `pipeline` | msg = `run finished`"
+        }
+      ]
+    },
+    {
+      "title": "items judged vs passed per run",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum by (status) (count_over_time({container=\"tattoo\"} | json | subsystem = `judge` | msg = `triaged` [1d]))",
+          "legendFormat": "judged"
+        },
+        {
+          "expr": "sum (count_over_time({container=\"tattoo\"} | json | subsystem = `judge` | msg = `triaged` | passed = `true` [1d]))",
+          "legendFormat": "passed"
+        }
+      ]
+    },
+    {
+      "title": "triage scores by source (tuning instrument)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "avg by (source) (avg_over_time({container=\"tattoo\"} | json | subsystem = `judge` | msg = `triaged` | unwrap score [1d]))",
+          "legendFormat": "{{source}}"
+        }
+      ]
+    },
+    {
+      "title": "acquisition method per item (bad extraction shows up here)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "sum by (method) (count_over_time({container=\"tattoo\"} | json | subsystem = `acquire` | msg = `content stored` [1d]))",
+          "legendFormat": "{{method}}"
+        }
+      ]
+    },
+    {
+      "title": "warnings and errors",
+      "type": "logs",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "{container=\"tattoo\"} | json | level =~ `warn|error`"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "version": 1
 }

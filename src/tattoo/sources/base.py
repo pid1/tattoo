@@ -44,7 +44,12 @@ def ok(data: Any) -> dict:
 
 
 def unavailable(error: str) -> dict:
-    return {"status": "unavailable", "data": None, "error": error, "fetched_at": _now_iso()}
+    return {
+        "status": "unavailable",
+        "data": None,
+        "error": error,
+        "fetched_at": _now_iso(),
+    }
 
 
 def safe(fn: Callable[[], Any]) -> dict:
@@ -141,7 +146,11 @@ def fetch(
         except urllib.error.HTTPError as e:
             if e.code == 304:
                 return FetchResult(
-                    status=304, body=b"", etag=etag, last_modified=last_modified, final_url=url
+                    status=304,
+                    body=b"",
+                    etag=etag,
+                    last_modified=last_modified,
+                    final_url=url,
                 )
             retryable = e.code in _RETRYABLE_CODES and attempt < max_attempts
             if not retryable:
@@ -169,26 +178,39 @@ def _sleep_backoff(attempt: int, base: float, retry_after: str | None) -> None:
     time.sleep(delay)
 
 
-def get_bytes(url: str, headers: dict | None = None, timeout: float = DEFAULT_TIMEOUT) -> bytes:
+def get_bytes(
+    url: str, headers: dict | None = None, timeout: float = DEFAULT_TIMEOUT
+) -> bytes:
     return _request("GET", url, headers=headers, timeout=timeout)
 
 
-def get_text(url: str, headers: dict | None = None, timeout: float = DEFAULT_TIMEOUT) -> str:
-    return get_bytes(url, headers=headers, timeout=timeout).decode("utf-8", errors="replace")
+def get_text(
+    url: str, headers: dict | None = None, timeout: float = DEFAULT_TIMEOUT
+) -> str:
+    return get_bytes(url, headers=headers, timeout=timeout).decode(
+        "utf-8", errors="replace"
+    )
 
 
-def get_json(url: str, headers: dict | None = None, timeout: float = DEFAULT_TIMEOUT) -> Any:
+def get_json(
+    url: str, headers: dict | None = None, timeout: float = DEFAULT_TIMEOUT
+) -> Any:
     return json.loads(get_bytes(url, headers=headers, timeout=timeout).decode("utf-8"))
 
 
 def post_json(
-    url: str, payload: dict, headers: dict | None = None, timeout: float = DEFAULT_TIMEOUT
+    url: str,
+    payload: dict,
+    headers: dict | None = None,
+    timeout: float = DEFAULT_TIMEOUT,
 ) -> Any:
     h = {"content-type": "application/json"}
     if headers:
         h.update(headers)
     body = json.dumps(payload).encode("utf-8")
-    return json.loads(_request("POST", url, headers=h, body=body, timeout=timeout).decode("utf-8"))
+    return json.loads(
+        _request("POST", url, headers=h, body=body, timeout=timeout).decode("utf-8")
+    )
 
 
 # -- html/text utilities (reveille port) --------------------------------------
@@ -219,7 +241,10 @@ def strip_html(s: str) -> str:
 
 
 def post_form(
-    url: str, payload: dict, headers: dict | None = None, timeout: float = DEFAULT_TIMEOUT
+    url: str,
+    payload: dict,
+    headers: dict | None = None,
+    timeout: float = DEFAULT_TIMEOUT,
 ) -> Any:
     """form-encoded post for apis like pushover that don't accept json bodies.
     None values are dropped rather than sent as the string 'None'."""
@@ -228,7 +253,9 @@ def post_form(
     h = {"content-type": "application/x-www-form-urlencoded"}
     if headers:
         h.update(headers)
-    body = urllib.parse.urlencode({k: v for k, v in payload.items() if v is not None}).encode(
-        "utf-8"
+    body = urllib.parse.urlencode(
+        {k: v for k, v in payload.items() if v is not None}
+    ).encode("utf-8")
+    return json.loads(
+        _request("POST", url, headers=h, body=body, timeout=timeout).decode("utf-8")
     )
-    return json.loads(_request("POST", url, headers=h, body=body, timeout=timeout).decode("utf-8"))

@@ -34,7 +34,9 @@ def _item(video_id="VID00000001", duration_s=600, description="desc"):
         "external_id": video_id,
         "canonical_url": f"https://www.youtube.com/watch?v={video_id}",
         "title": "a video",
-        "enrich_meta": json.dumps({"duration_s": duration_s, "description": description}),
+        "enrich_meta": json.dumps(
+            {"duration_s": duration_s, "description": description}
+        ),
     }
 
 
@@ -45,7 +47,9 @@ def no_politeness_sleep(monkeypatch):
 
 def test_poll_uses_video_id_as_external_id(monkeypatch):
     monkeypatch.setattr(
-        youtube.base, "fetch", lambda url, **k: base.FetchResult(200, FEED.encode(), None, None)
+        youtube.base,
+        "fetch",
+        lambda url, **k: base.FetchResult(200, FEED.encode(), None, None),
     )
     result = youtube.poll(_source())
     entry = result["entries"][0]
@@ -81,7 +85,9 @@ def test_enrich_drops_shorts_and_premieres(monkeypatch):
             "snippet": {"liveBroadcastContent": "upcoming", "description": "d"},
         },
     ]
-    monkeypatch.setattr(youtube.base, "get_json", lambda url, **k: _videos_response(api_items))
+    monkeypatch.setattr(
+        youtube.base, "get_json", lambda url, **k: _videos_response(api_items)
+    )
     kept = youtube.enrich(entries, api_key="k")
     assert [e["video_id"] for e in kept] == ["LONG"]
     assert kept[0]["enrich_meta"]["duration_s"] == 28 * 60 + 30
@@ -117,7 +123,9 @@ def test_content_over_duration_ceiling_degrades(monkeypatch):
         raise AssertionError("must not fetch a transcript over the ceiling")
 
     monkeypatch.setattr(youtube, "_fetch_transcript", no_fetch)
-    result = youtube.content(_item(duration_s=3 * 3600, description="a three hour podcast"))
+    result = youtube.content(
+        _item(duration_s=3 * 3600, description="a three hour podcast")
+    )
     assert result["method"] == "summary_fallback"
     assert result["degraded"] is True
     assert result["text"] == "a three hour podcast"

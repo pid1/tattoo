@@ -17,7 +17,9 @@ from tattoo.logconfig import LOG_CONFIG
 def main() -> None:
     uvicorn.run(
         "tattoo.main:app",
-        host=os.environ.get("TATTOO_HOST", "0.0.0.0"),  # noqa: S104 - tailnet-only by design
+        host=os.environ.get(
+            "TATTOO_HOST", "0.0.0.0"
+        ),  # noqa: S104 - tailnet-only by design
         port=int(os.environ.get("TATTOO_PORT", "8000")),
         log_config=LOG_CONFIG,
     )

@@ -75,10 +75,20 @@ def create_app() -> FastAPI:
 
     dist = config.dist_path()
     app.mount(
-        "/dashboard", NoCacheStaticFiles(directory=dist / "dashboard", html=True), name="dashboard"
+        "/dashboard",
+        NoCacheStaticFiles(directory=dist / "dashboard", html=True),
+        name="dashboard",
     )
-    app.mount("/archive", NoCacheStaticFiles(directory=dist / "archive", html=True), name="archive")
-    app.mount("/static", NoCacheStaticFiles(directory=config.REPO_ROOT / "static"), name="static")
+    app.mount(
+        "/archive",
+        NoCacheStaticFiles(directory=dist / "archive", html=True),
+        name="archive",
+    )
+    app.mount(
+        "/static",
+        NoCacheStaticFiles(directory=config.REPO_ROOT / "static"),
+        name="static",
+    )
 
     # HEAD included so probes (curl -I and friends) see the redirect too
     @app.api_route("/", methods=["GET", "HEAD"])

@@ -91,7 +91,9 @@ def send_pushover(
         log("pushover", f"send failed: {type(e).__name__}: {e}", level="error")
 
 
-def send_failure(message: str, now: datetime, *, token: str | None, user_key: str | None) -> None:
+def send_failure(
+    message: str, now: datetime, *, token: str | None, user_key: str | None
+) -> None:
     """failure notification, lowest priority (-2): no sound, no vibration,
     just a badge (plan §9)."""
     send_pushover(

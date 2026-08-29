@@ -71,7 +71,10 @@ def test_channel_url_resolves_without_api_key(monkeypatch):
     result = resolver.resolve("https://www.youtube.com/channel/UCabc123", None)
     card = result["card"]
     assert card["type"] == "youtube"
-    assert card["feed_url"] == "https://www.youtube.com/feeds/videos.xml?channel_id=UCabc123"
+    assert (
+        card["feed_url"]
+        == "https://www.youtube.com/feeds/videos.xml?channel_id=UCabc123"
+    )
     assert card["suggested_cap"] == 5
 
 
@@ -83,7 +86,9 @@ def test_handle_requires_api_key(monkeypatch):
 def test_handle_resolves_with_api_key(monkeypatch):
     yt_feed = RSS.replace(b"Example Blog", b"MTW")
     _fetches(monkeypatch, {"feeds/videos.xml": yt_feed})
-    monkeypatch.setattr(resolver.base, "get_json", lambda url, **k: {"items": [{"id": "UCmtw999"}]})
+    monkeypatch.setattr(
+        resolver.base, "get_json", lambda url, **k: {"items": [{"id": "UCmtw999"}]}
+    )
     result = resolver.resolve("@Mike_Tango_Whiskey", "api-key")
     assert "channel_id=UCmtw999" in result["card"]["feed_url"]
 
@@ -101,7 +106,9 @@ def test_watch_link_resolves_video_to_channel(monkeypatch):
 
 
 def test_no_feed_found_raises(monkeypatch):
-    _fetches(monkeypatch, {"example.com": b"<html><head></head><body>no feeds</body></html>"})
+    _fetches(
+        monkeypatch, {"example.com": b"<html><head></head><body>no feeds</body></html>"}
+    )
     with pytest.raises(resolver.ResolveError, match="no feed found"):
         resolver.resolve("https://example.com", None)
 

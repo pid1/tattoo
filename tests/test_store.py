@@ -13,7 +13,10 @@ def test_setting_upsert_overwrites(db):
     store.set_setting(db, "k", "v1")
     store.set_setting(db, "k", "v2")
     assert store.get_setting(db, "k") == "v2"
-    assert db.execute("SELECT COUNT(*) AS n FROM settings WHERE key = 'k'").fetchone()["n"] == 1
+    assert (
+        db.execute("SELECT COUNT(*) AS n FROM settings WHERE key = 'k'").fetchone()["n"]
+        == 1
+    )
 
 
 def test_defaults_apply_without_rows(db):

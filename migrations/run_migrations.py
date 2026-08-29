@@ -22,7 +22,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from migrate_001_initial import migrate as migrate_001_initial  # noqa: E402
 from migrate_002_token_columns import migrate as migrate_002_token_columns  # noqa: E402
-from migrate_003_backfill_cutoff import migrate as migrate_003_backfill_cutoff  # noqa: E402
+from migrate_003_backfill_cutoff import (
+    migrate as migrate_003_backfill_cutoff,
+)  # noqa: E402
 
 MIGRATIONS = [
     ("001_initial", migrate_001_initial),
@@ -31,7 +33,9 @@ MIGRATIONS = [
 ]
 
 
-def _emit(name: str, ok: bool, error: str | None = None, error_type: str | None = None) -> None:
+def _emit(
+    name: str, ok: bool, error: str | None = None, error_type: str | None = None
+) -> None:
     if sys.stdout.isatty():
         suffix = "" if ok else f" {error_type}: {error}" if error else ""
         print(f"[migrations] {'ok' if ok else 'FAILED'}: {name}{suffix}", flush=True)

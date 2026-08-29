@@ -36,7 +36,8 @@ def canonical_url(url: str) -> str:
     query = [
         (k, v)
         for k, v in parse_qsl(parts.query, keep_blank_values=True)
-        if k.lower() not in _TRACKING_EXACT and not k.lower().startswith(_TRACKING_PREFIXES)
+        if k.lower() not in _TRACKING_EXACT
+        and not k.lower().startswith(_TRACKING_PREFIXES)
     ]
     # fragment always dropped: it never reaches the server and is a common
     # source of spurious duplicates

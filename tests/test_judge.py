@@ -138,7 +138,9 @@ def test_truncated_extraction_raises_instead_of_returning_inner_object():
         '"locator": "120s"}, {"text": "Second finding that got cut off mid'
     )
     with pytest.raises(judge.TruncatedResponse):
-        judge._extract_json_object(truncated, required_keys=("bluf", "findings", "specifics"))
+        judge._extract_json_object(
+            truncated, required_keys=("bluf", "findings", "specifics")
+        )
 
 
 def test_required_keys_rejects_inner_object_but_accepts_outer():
@@ -151,8 +153,12 @@ def test_repairs_invalid_backslash_escape():
     """regression: a model wrote doesn\\'t inside a string. \\' is not a legal
     json escape, so the complete object failed json.loads and the item was
     dropped even though nothing was truncated."""
-    text = '{"bluf": "The video doesn\\\'t explain it.", "findings": [], "specifics": []}'
-    parsed = judge._extract_json_object(text, required_keys=("bluf", "findings", "specifics"))
+    text = (
+        '{"bluf": "The video doesn\\\'t explain it.", "findings": [], "specifics": []}'
+    )
+    parsed = judge._extract_json_object(
+        text, required_keys=("bluf", "findings", "specifics")
+    )
     assert parsed["bluf"] == "The video doesn't explain it."
 
 
@@ -173,7 +179,9 @@ def test_escape_repair_does_not_corrupt_trailing_backslash_pair():
 def test_malformed_but_closed_is_not_reported_as_truncated():
     text = '{"bluf": "x", "findings": [, ], "specifics": []}'
     with pytest.raises(ValueError) as exc:
-        judge._extract_json_object(text, required_keys=("bluf", "findings", "specifics"))
+        judge._extract_json_object(
+            text, required_keys=("bluf", "findings", "specifics")
+        )
     assert not isinstance(exc.value, judge.TruncatedResponse)
 
 
@@ -185,14 +193,23 @@ def test_model_max_output_known_and_unknown():
 
 def test_resolve_max_tokens_zero_means_model_ceiling(db):
     store.set_setting(db, "extract_max_tokens", "0")
-    assert judge.resolve_max_tokens(db, "extract_max_tokens", "claude-sonnet-5", 2000) == 128_000
+    assert (
+        judge.resolve_max_tokens(db, "extract_max_tokens", "claude-sonnet-5", 2000)
+        == 128_000
+    )
 
 
 def test_resolve_max_tokens_explicit_and_garbage(db):
     store.set_setting(db, "extract_max_tokens", "12345")
-    assert judge.resolve_max_tokens(db, "extract_max_tokens", "claude-sonnet-5", 2000) == 12345
+    assert (
+        judge.resolve_max_tokens(db, "extract_max_tokens", "claude-sonnet-5", 2000)
+        == 12345
+    )
     store.set_setting(db, "extract_max_tokens", "not-a-number")
-    assert judge.resolve_max_tokens(db, "extract_max_tokens", "claude-sonnet-5", 2000) == 2000
+    assert (
+        judge.resolve_max_tokens(db, "extract_max_tokens", "claude-sonnet-5", 2000)
+        == 2000
+    )
 
 
 # -- triage ------------------------------------------------------------------
@@ -200,7 +217,9 @@ def test_resolve_max_tokens_explicit_and_garbage(db):
 
 def test_triage_records_judgment_and_tokens(db, monkeypatch):
     item, content_row, source = _seed(db, threshold=5)
-    calls = _patch_llm(monkeypatch, ['{"score": 7, "justification": "dense", "claims": ["42mm"]}'])
+    calls = _patch_llm(
+        monkeypatch, ['{"score": 7, "justification": "dense", "claims": ["42mm"]}']
+    )
 
     verdict = judge.triage_item(db, 1, item, content_row, source)
     assert verdict["passed"] is True
@@ -210,7 +229,9 @@ def test_triage_records_judgment_and_tokens(db, monkeypatch):
     assert row["prompt_history_id"] is not None
     assert (row["input_tokens"], row["output_tokens"]) == (100, 50)
 
-    ledger = json.loads(db.execute("SELECT token_usage FROM runs").fetchone()["token_usage"])
+    ledger = json.loads(
+        db.execute("SELECT token_usage FROM runs").fetchone()["token_usage"]
+    )
     model = store.get_setting(db, "triage_model")
     assert ledger[model] == {"input": 100, "output": 50}
 
@@ -267,10 +288,13 @@ def test_extract_records_findings(db, monkeypatch):
     )
     extraction_id = judge.extract_item(db, 1, item, content_row, source)
 
-    extraction = db.execute("SELECT * FROM extractions WHERE id = ?", (extraction_id,)).fetchone()
+    extraction = db.execute(
+        "SELECT * FROM extractions WHERE id = ?", (extraction_id,)
+    ).fetchone()
     assert extraction["bluf"] == "the bottom line."
     assert json.loads(extraction["specifics"]) == ["42mm", "$120"]
     findings = db.execute(
-        "SELECT * FROM findings WHERE extraction_id = ? ORDER BY ordinal", (extraction_id,)
+        "SELECT * FROM findings WHERE extraction_id = ? ORDER BY ordinal",
+        (extraction_id,),
     ).fetchall()
     assert [f["locator"] for f in findings] == ["412s", None]

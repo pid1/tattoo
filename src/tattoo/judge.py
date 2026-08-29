@@ -148,12 +148,15 @@ def save_prompt(conn, name: str, value: str) -> int:
 def rollback_prompt(conn, name: str, history_id: int) -> None:
     """rollback = repoint and bump last_used_at; never inserts."""
     row = conn.execute(
-        "SELECT id FROM prompt_history WHERE id = ? AND field_name = ?", (history_id, name)
+        "SELECT id FROM prompt_history WHERE id = ? AND field_name = ?",
+        (history_id, name),
     ).fetchone()
     if row is None:
         raise ValueError(f"no history row {history_id} for {name}")
     now = datetime.now(UTC).isoformat(timespec="seconds")
-    conn.execute("UPDATE prompt_history SET last_used_at = ? WHERE id = ?", (now, history_id))
+    conn.execute(
+        "UPDATE prompt_history SET last_used_at = ? WHERE id = ?", (now, history_id)
+    )
     conn.commit()
     store.set_setting(conn, _pointer_key(name), str(history_id))
 
@@ -181,14 +184,21 @@ def prompt_history(conn, name: str) -> list[dict]:
 
 
 def call_llm(
-    conn, run_id: int | None, model: str, system_text: str, user_text: str, max_tokens: int
+    conn,
+    run_id: int | None,
+    model: str,
+    system_text: str,
+    user_text: str,
+    max_tokens: int,
 ) -> tuple[str, dict]:
     """one messages-api call with budget enforcement and usage accounting.
     returns (text, usage) -- text is the concatenated text blocks (thinking
     blocks filtered out), usage feeds per-item token attribution."""
     api_key = store.get_secret(conn, "anthropic_api_key")
     if not api_key:
-        raise RuntimeError("anthropic api key not configured (settings or ANTHROPIC_API_KEY)")
+        raise RuntimeError(
+            "anthropic api key not configured (settings or ANTHROPIC_API_KEY)"
+        )
 
     if run_id is not None:
         _check_budget(conn, run_id)
@@ -196,7 +206,13 @@ def call_llm(
     payload = {
         "model": model,
         "max_tokens": max_tokens,
-        "system": [{"type": "text", "text": system_text, "cache_control": {"type": "ephemeral"}}],
+        "system": [
+            {
+                "type": "text",
+                "text": system_text,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ],
         "messages": [{"role": "user", "content": user_text}],
     }
     headers = {"x-api-key": api_key, "anthropic-version": ANTHROPIC_VERSION}
@@ -207,7 +223,9 @@ def call_llm(
         _record_usage(conn, run_id, model, usage)
 
     # filter by block type: newer models may return thinking blocks first
-    text = "".join(b.get("text", "") for b in resp.get("content", []) if b.get("type") == "text")
+    text = "".join(
+        b.get("text", "") for b in resp.get("content", []) if b.get("type") == "text"
+    )
     if not text:
         raise RuntimeError(f"empty response from {model}")
 
@@ -227,17 +245,23 @@ def _usage_tokens(usage: dict) -> tuple[int, int]:
 
 def _record_usage(conn, run_id: int, model: str, usage: dict) -> None:
     input_t, output_t = _usage_tokens(usage)
-    row = conn.execute("SELECT token_usage FROM runs WHERE id = ?", (run_id,)).fetchone()
+    row = conn.execute(
+        "SELECT token_usage FROM runs WHERE id = ?", (run_id,)
+    ).fetchone()
     ledger = json.loads(row["token_usage"] or "{}")
     entry = ledger.setdefault(model, {"input": 0, "output": 0})
     entry["input"] += input_t
     entry["output"] += output_t
-    conn.execute("UPDATE runs SET token_usage = ? WHERE id = ?", (json.dumps(ledger), run_id))
+    conn.execute(
+        "UPDATE runs SET token_usage = ? WHERE id = ?", (json.dumps(ledger), run_id)
+    )
     conn.commit()
 
 
 def _spent_tokens(conn, run_id: int) -> int:
-    row = conn.execute("SELECT token_usage FROM runs WHERE id = ?", (run_id,)).fetchone()
+    row = conn.execute(
+        "SELECT token_usage FROM runs WHERE id = ?", (run_id,)
+    ).fetchone()
     ledger = json.loads(row["token_usage"] or "{}")
     return sum(m["input"] + m["output"] for m in ledger.values())
 
@@ -278,7 +302,17 @@ def triage_item(conn, run_id: int, item, content_row, source) -> dict:
     cur = conn.execute(
         "INSERT INTO judgments (item_id, run_id, prompt_history_id, score, justification,"
         " passed, created_at, input_tokens, output_tokens) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (item["id"], run_id, prompt_id, score, justification, int(passed), now, input_t, output_t),
+        (
+            item["id"],
+            run_id,
+            prompt_id,
+            score,
+            justification,
+            int(passed),
+            now,
+            input_t,
+            output_t,
+        ),
     )
     conn.commit()
     return {
@@ -316,7 +350,9 @@ def extract_item(conn, run_id: int, item, content_row, source) -> int:
         f"TITLE: {item['title']}\n"
         f"CONTENT:\n{content_row['text'][:MAX_CONTENT_CHARS]}"
     )
-    max_tokens = resolve_max_tokens(conn, "extract_max_tokens", model, EXTRACT_MAX_TOKENS)
+    max_tokens = resolve_max_tokens(
+        conn, "extract_max_tokens", model, EXTRACT_MAX_TOKENS
+    )
     raw, usage = call_llm(conn, run_id, model, system_text, user_text, max_tokens)
     parsed = _extract_json_object(raw, required_keys=("bluf", "findings"))
     input_t, output_t = _usage_tokens(usage)
@@ -461,5 +497,7 @@ def _extract_json_object(text: str, required_keys: tuple[str, ...] = ()) -> dict
     # a later unclosed brace is just a stray "{" in trailing prose, and a
     # closed-but-unparseable object is malformed rather than truncated.
     if not first_candidate_closed and saw_unclosed:
-        raise TruncatedResponse(f"json object never closed (truncated): {text[-200:]!r}")
+        raise TruncatedResponse(
+            f"json object never closed (truncated): {text[-200:]!r}"
+        )
     raise ValueError(f"no usable json object in model output: {text[:200]!r}")

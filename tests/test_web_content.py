@@ -12,7 +12,12 @@ def no_politeness_sleep(monkeypatch):
 
 
 def _item(url="https://example.com/a", title="a post"):
-    return {"canonical_url": url, "title": title, "external_id": url, "enrich_meta": "{}"}
+    return {
+        "canonical_url": url,
+        "title": title,
+        "external_id": url,
+        "enrich_meta": "{}",
+    }
 
 
 LONG_HTML = "<p>" + ("substantive words here. " * 40) + "</p>"  # ~1000 chars of text
@@ -35,8 +40,12 @@ def test_short_feed_body_falls_through_to_extraction(monkeypatch):
         "fetch",
         lambda url, **k: base.FetchResult(200, b"<html>page</html>", None, None, url),
     )
-    monkeypatch.setattr(web, "_extract_article", lambda body: "extracted article text " * 30)
-    result = web.content(_item(), {"feed_body_html": "<p>teaser</p>", "summary_html": ""})
+    monkeypatch.setattr(
+        web, "_extract_article", lambda body: "extracted article text " * 30
+    )
+    result = web.content(
+        _item(), {"feed_body_html": "<p>teaser</p>", "summary_html": ""}
+    )
     assert result["method"] == "extracted"
     assert result["degraded"] is False
 
@@ -47,7 +56,8 @@ def test_extraction_failure_degrades_to_summary(monkeypatch):
 
     monkeypatch.setattr(web.base, "fetch", fetch_fails)
     result = web.content(
-        _item(), {"feed_body_html": "", "summary_html": "<p>a two sentence summary.</p>"}
+        _item(),
+        {"feed_body_html": "", "summary_html": "<p>a two sentence summary.</p>"},
     )
     assert result["method"] == "summary_fallback"
     assert result["degraded"] is True
@@ -62,7 +72,9 @@ def test_thin_extraction_degrades(monkeypatch):
         lambda url, **k: base.FetchResult(200, b"<html>x</html>", None, None, url),
     )
     monkeypatch.setattr(web, "_extract_article", lambda body: "Home | About | Contact")
-    result = web.content(_item(), {"feed_body_html": "", "summary_html": "<p>summary.</p>"})
+    result = web.content(
+        _item(), {"feed_body_html": "", "summary_html": "<p>summary.</p>"}
+    )
     assert result["method"] == "summary_fallback"
     assert result["degraded"] is True
 

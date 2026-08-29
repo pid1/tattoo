@@ -36,7 +36,9 @@ DEFAULTS = {
 }
 
 
-def get_setting(conn: sqlite3.Connection, key: str, default: str | None = None) -> str | None:
+def get_setting(
+    conn: sqlite3.Connection, key: str, default: str | None = None
+) -> str | None:
     row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
     if row is not None:
         return row["value"]
@@ -155,7 +157,9 @@ def source_stats(conn: sqlite3.Connection, source_id: int) -> dict:
     return {
         "items_total": items_total,
         "judged_30d": judged["n"],
-        "pass_rate_30d": round(judged["passed"] / judged["n"], 2) if judged["n"] else None,
+        "pass_rate_30d": (
+            round(judged["passed"] / judged["n"], 2) if judged["n"] else None
+        ),
         "last_passing_at": last_passing,
         "tokens_30d": judged["tokens"] + extract_tokens,
     }

@@ -58,7 +58,10 @@ def export_config(db: sqlite3.Connection = Depends(get_db)) -> str:
     """toml snapshot for backup / version control. secrets are excluded by
     construction (plan §0.4): only PUBLIC_SETTINGS keys are read."""
     judge.ensure_prompts(db)
-    lines = [f"# tattoo config export {datetime.now(UTC).isoformat(timespec='seconds')}", ""]
+    lines = [
+        f"# tattoo config export {datetime.now(UTC).isoformat(timespec='seconds')}",
+        "",
+    ]
     lines.append("[settings]")
     for key in store.PUBLIC_SETTINGS:
         lines.append(f"{key} = {_toml_str(store.get_setting(db, key, '') or '')}")
@@ -88,7 +91,9 @@ def import_config(body: dict, db: sqlite3.Connection = Depends(get_db)) -> dict:
     by feed_url, prompts as new versions (history preserved)."""
     raw = body.get("toml")
     if not raw:
-        raise HTTPException(status_code=422, detail="body must be {'toml': '<export text>'}")
+        raise HTTPException(
+            status_code=422, detail="body must be {'toml': '<export text>'}"
+        )
     try:
         parsed = tomllib.loads(raw)
     except tomllib.TOMLDecodeError as e:
@@ -129,7 +134,9 @@ def import_config(body: dict, db: sqlite3.Connection = Depends(get_db)) -> dict:
                 src.get("site_url"),
                 src.get("criteria") or "",
                 int(src.get("threshold") or 5),
-                int(src.get("daily_item_cap") or (5 if source_type == "youtube" else 10)),
+                int(
+                    src.get("daily_item_cap") or (5 if source_type == "youtube" else 10)
+                ),
                 int(bool(src.get("enabled", True))),
                 now,
                 now,

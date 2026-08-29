@@ -50,7 +50,10 @@ def migrate() -> bool:
         conn.commit()
         return True
     except sqlite3.Error as e:
-        print(f"[migrations] 003_backfill_cutoff error: {type(e).__name__}: {e}", flush=True)
+        print(
+            f"[migrations] 003_backfill_cutoff error: {type(e).__name__}: {e}",
+            flush=True,
+        )
         return False
     finally:
         conn.close()

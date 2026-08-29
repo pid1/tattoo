@@ -27,7 +27,12 @@ def test_secret_value_never_returned(client, db):
 def test_put_settings_upserts(client, db):
     resp = client.put(
         "/api/settings",
-        json={"settings": {"schedule_time": "06:30", "anthropic_api_key": "sk-new-key-wxyz"}},
+        json={
+            "settings": {
+                "schedule_time": "06:30",
+                "anthropic_api_key": "sk-new-key-wxyz",
+            }
+        },
     )
     assert resp.status_code == 200
     assert store.get_setting(db, "schedule_time") == "06:30"
@@ -92,4 +97,7 @@ def test_unknown_prompt_404(client):
 
 
 def test_empty_prompt_rejected(client):
-    assert client.put("/api/prompts/triage_system", json={"value": "  "}).status_code == 422
+    assert (
+        client.put("/api/prompts/triage_system", json={"value": "  "}).status_code
+        == 422
+    )

@@ -11,7 +11,9 @@ from tattoo import config, judge, pipeline, render, store
 LONG_BODY = "<p>" + ("substantive words here. " * 40) + "</p>"
 
 
-def _seed_source(db, cap=10, name="example", feed="https://example.com/feed.xml", threshold=5):
+def _seed_source(
+    db, cap=10, name="example", feed="https://example.com/feed.xml", threshold=5
+):
     now = datetime.now(UTC).isoformat(timespec="seconds")
     db.execute(
         "INSERT INTO sources (type, feed_url, display_name, daily_item_cap, threshold,"
@@ -184,7 +186,10 @@ def test_first_poll_with_no_entries_stays_a_first_poll(db, monkeypatch):
     _seed_source(db)
     _patch_poll(monkeypatch, [])
     pipeline.run("manual")
-    assert db.execute("SELECT backfill_cutoff FROM sources").fetchone()["backfill_cutoff"] is None
+    assert (
+        db.execute("SELECT backfill_cutoff FROM sources").fetchone()["backfill_cutoff"]
+        is None
+    )
 
     _patch_poll(monkeypatch, _entries(9), etag="e2")
     pipeline.run("manual")
@@ -198,7 +203,12 @@ def test_failing_source_never_fails_run(db, monkeypatch):
     def poll(src):
         if src["display_name"] == "bad":
             raise RuntimeError("HTTP 500 from https://bad.example/feed: boom")
-        return {"entries": _entries(2), "etag": None, "last_modified": None, "not_modified": False}
+        return {
+            "entries": _entries(2),
+            "etag": None,
+            "last_modified": None,
+            "not_modified": False,
+        }
 
     monkeypatch.setattr(pipeline.web, "poll", poll)
     pipeline.run("manual")
@@ -242,7 +252,10 @@ def test_degraded_acquisition_flags_item(db, monkeypatch):
     pipeline.run("manual")
 
     assert db.execute("SELECT degraded FROM items").fetchone()["degraded"] == 1
-    assert db.execute("SELECT method FROM content").fetchone()["method"] == "summary_fallback"
+    assert (
+        db.execute("SELECT method FROM content").fetchone()["method"]
+        == "summary_fallback"
+    )
     html = (config.dist_path() / "dashboard" / "index.html").read_text()
     assert "degraded" in html  # surfaced on the page (plan M2)
 
@@ -287,7 +300,9 @@ def _patch_gate(monkeypatch, scores: dict[str, int]):
         user = payload["messages"][0]["content"]
         if "you are the triage gate" in system:
             score = next((s for title, s in scores.items() if title in user), 0)
-            body = json.dumps({"score": score, "justification": "because", "claims": []})
+            body = json.dumps(
+                {"score": score, "justification": "because", "claims": []}
+            )
         else:
             body = json.dumps(
                 {
@@ -374,7 +389,9 @@ def test_budget_abort_recorded_and_page_still_written(db, monkeypatch):
 
     pipeline.run("manual")
 
-    assert db.execute("SELECT status FROM runs").fetchone()["status"] == "aborted_budget"
+    assert (
+        db.execute("SELECT status FROM runs").fetchone()["status"] == "aborted_budget"
+    )
     assert (config.dist_path() / "dashboard" / "index.html").exists()
 
 
@@ -429,7 +446,9 @@ def test_reprocess_rejection_does_not_keep_stale_extraction(db, monkeypatch):
     _patch_gate(monkeypatch, {"item 0": 2})
     pipeline.reprocess()
 
-    entry = pipeline._sections_for_today(db, datetime.now(store.local_tz(db)))[0]["entries"][0]
+    entry = pipeline._sections_for_today(db, datetime.now(store.local_tz(db)))[0][
+        "entries"
+    ][0]
     assert entry["passed"] is False
     assert entry["score"] == 2
     assert entry["bluf"] is None, "stale extraction from the earlier run leaked through"
@@ -441,7 +460,10 @@ def _unfetched_item(db, first_seen: datetime):
     db.execute(
         "INSERT INTO items (source_id, external_id, canonical_url, title, normalized_title,"
         " published_at, first_seen_at) VALUES (1, 'x', 'https://e/x', 't', 't', ?, ?)",
-        (first_seen.isoformat(timespec="seconds"), first_seen.isoformat(timespec="seconds")),
+        (
+            first_seen.isoformat(timespec="seconds"),
+            first_seen.isoformat(timespec="seconds"),
+        ),
     )
     db.commit()
 
@@ -485,7 +507,9 @@ def test_late_fetched_item_is_judged_and_rendered(db, monkeypatch):
 
     pipeline.run("manual")
 
-    judged = db.execute("SELECT COUNT(*) AS n FROM judgments WHERE item_id = 1").fetchone()["n"]
+    judged = db.execute(
+        "SELECT COUNT(*) AS n FROM judgments WHERE item_id = 1"
+    ).fetchone()["n"]
     assert judged == 1, "item fetched a day late was never judged"
     titles = [
         e["title"]
@@ -520,7 +544,9 @@ def test_passed_item_without_extraction_is_labelled(db, monkeypatch):
     )
     pipeline.run("manual")
 
-    entry = pipeline._sections_for_today(db, datetime.now(store.local_tz(db)))[0]["entries"][0]
+    entry = pipeline._sections_for_today(db, datetime.now(store.local_tz(db)))[0][
+        "entries"
+    ][0]
     assert entry["passed"] is True
     assert entry["bluf"] is None
     assert entry["extraction_failed"] is True

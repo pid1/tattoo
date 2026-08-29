@@ -22,7 +22,9 @@ def main() -> None:
     parser.add_argument("type", choices=["web", "youtube"])
     parser.add_argument("feed_url")
     parser.add_argument("display_name")
-    parser.add_argument("--cap", type=int, default=None, help="daily item cap (default by type)")
+    parser.add_argument(
+        "--cap", type=int, default=None, help="daily item cap (default by type)"
+    )
     parser.add_argument("--site", default=None, help="site url")
     args = parser.parse_args()
 

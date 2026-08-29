@@ -22,7 +22,9 @@ EXPECTED_TABLES = {
 
 
 def _tables(conn):
-    rows = conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()
+    rows = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'table'"
+    ).fetchall()
     return {r["name"] for r in rows}
 
 
@@ -43,7 +45,9 @@ def test_init_is_idempotent():
 def test_pre_migration_backup_taken_on_existing_db():
     database.init_db()
     conn = database.connect()
-    conn.execute("INSERT INTO settings (key, value, updated_at) VALUES ('x', 'y', 'now')")
+    conn.execute(
+        "INSERT INTO settings (key, value, updated_at) VALUES ('x', 'y', 'now')"
+    )
     conn.commit()
     conn.close()
 

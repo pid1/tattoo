@@ -20,8 +20,17 @@ ENV PATH="/app/.venv/bin:$PATH" \
     TATTOO_DB_PATH=/data/tattoo.db \
     TATTOO_DIST_PATH=/dist
 EXPOSE 8000
+# trivy DS-0002 / checkov CKV_DOCKER_3: do not run as root. The mount
+# points are created and chowned *before* the VOLUME lines, because
+# changes made to a declared volume path later in the build are discarded.
+RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app \
+    && mkdir -p /data /dist \
+    && chown -R 10001 /app /data /dist
+
 VOLUME /data
 VOLUME /dist
+
+USER 10001
 # no HEALTHCHECK by decision (plan §9): logs are the observability surface
 # started in-process rather than via the uvicorn CLI so the json log config
 # is installed before the server configures its own plain-text logging

@@ -6,17 +6,17 @@ Daily feed digest: polls RSS/Atom and YouTube feeds, acquires full content, runs
 
 All operations are devenv scripts. **Always use these — run `lint`, not `ruff check .`; run `test`, not `uv run pytest`.**
 
-| Command | What it does | Blocking |
-|---|---|---|
-| `setup` | Initialize repo (install deps) | No |
-| `dev` | FastAPI dev server on port 8000 | **Yes** |
-| `dev-start` / `dev-stop` / `dev-status` / `dev-logs` | Background dev server quartet | No |
-| `lint` / `lint-fix` / `format` | ruff | No |
-| `test` | pytest | No |
-| `check` | lint + format check + tests — run before pushing | No |
-| `run-once` | Init the db and run the pipeline once | No |
-| `add-source` | Add a source row (`add-source web <feed_url> <name>`) | No |
-| `backup` | Snapshot the database | No |
+| Command                                              | What it does                                          | Blocking |
+| ---------------------------------------------------- | ----------------------------------------------------- | -------- |
+| `setup`                                              | Initialize repo (install deps)                        | No       |
+| `dev`                                                | FastAPI dev server on port 8000                       | **Yes**  |
+| `dev-start` / `dev-stop` / `dev-status` / `dev-logs` | Background dev server quartet                         | No       |
+| `lint` / `lint-fix` / `format`                       | ruff                                                  | No       |
+| `test`                                               | pytest                                                | No       |
+| `check`                                              | lint + format check + tests — run before pushing      | No       |
+| `run-once`                                           | Init the db and run the pipeline once                 | No       |
+| `add-source`                                         | Add a source row (`add-source web <feed_url> <name>`) | No       |
+| `backup`                                             | Snapshot the database                                 | No       |
 
 Without devenv: `uv sync`, then `PYTHONPATH=src uv run pytest` etc. Never bare `python` or `pip`.
 
@@ -36,7 +36,7 @@ Without devenv: `uv sync`, then `PYTHONPATH=src uv run pytest` etc. Never bare `
 - **All outbound HTTP goes through `sources/base.py`** (stdlib `urllib.request`; errors normalized to `RuntimeError` with the shape `HTTP {code} from {url}: ...`). Tests mock at this seam. Do not add `httpx`/`requests`; the only sanctioned parsing/extraction deps are `feedparser` and (from M2) `trafilatura`.
 - **Configuration is authoritative in the SQLite `settings` table** (string key/value). Env vars only override paths and secrets (`TATTOO_DB_PATH`, `TATTOO_DIST_PATH`, `TATTOO_BACKUP_KEEP`, `ANTHROPIC_API_KEY`, `PUSHOVER_API_KEY`, `PUSHOVER_USER_KEY`, `YOUTUBE_API_KEY`). Secret env overrides win over the db and are never written back.
 - **The scheduler is an in-process daemon thread** (`scheduler.py`), started from the FastAPI lifespan. It re-reads its schedule from the db each cycle and persists `last_run_date` in settings. Tests never start it: the `client` fixture deliberately skips lifespan.
-- **Ingest is bounded twice.** `sources.daily_item_cap` meters items per local day, and `sources.backfill_cutoff` bounds history: a source's *first* poll takes only its newest `pipeline.FIRST_RUN_ITEM_LIMIT` entries and stamps the cutoff at the oldest of them; every later poll ignores anything published before it. Without the cutoff the daily cap does not stop a back catalogue, it just meters it in over weeks. A NULL cutoff means "first poll has not happened yet", so an empty first poll stays a first poll.
+- **Ingest is bounded twice.** `sources.daily_item_cap` meters items per local day, and `sources.backfill_cutoff` bounds history: a source's _first_ poll takes only its newest `pipeline.FIRST_RUN_ITEM_LIMIT` entries and stamps the cutoff at the oldest of them; every later poll ignores anything published before it. Without the cutoff the daily cap does not stop a back catalogue, it just meters it in over weeks. A NULL cutoff means "first poll has not happened yet", so an empty first poll stays a first poll.
 - **A source failure is data, not an exception.** The pipeline only records `status='failed'`; nothing propagates. The notifier never raises. Errors render on the page rather than being hidden.
 - **Logs are structured JSON on stdout** via `tattoo.log.log(subsystem, msg, **fields)` — no `logging` module. Every skip path logs a reason. No healthcheck endpoint or heartbeat exists, by decision: logs are the observability surface.
 - **Rendered pages are static files** written to the dist volume; the app serves them via `StaticFiles` mounts with `Cache-Control: no-cache` (stable URLs, daily-changing bytes). The dashboard page is a byte-identical plain copy of the dated archive page — never a symlink. Briefing pages inline their CSS to stay self-contained; `static/styles.css` styles `/settings` only.
@@ -48,5 +48,5 @@ Without devenv: `uv sync`, then `PYTHONPATH=src uv run pytest` etc. Never bare `
 ## Style
 
 - Python 3.14, PEP-604 unions, `from __future__ import annotations`.
-- Lowercase docstrings and comments; comments record *why* (and the evidence), not what.
+- Lowercase docstrings and comments; comments record _why_ (and the evidence), not what.
 - Tests are plain pytest functions; docstrings state the rule being locked in.

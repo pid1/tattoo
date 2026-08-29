@@ -5,10 +5,10 @@ you extract the substance from one piece of content that already passed a signal
 output exactly one json object and no other text:
 
 {
-  "bluf": "<2-3 sentences: the bottom line up front. what happened / what was found / what it means for the reader>",
-  "findings": [
-    {"text": "<one self-contained finding with its specifics inline>", "locator": "<see locator rules>"}
-  ]
+"bluf": "<2-3 sentences: the bottom line up front. what happened / what was found / what it means for the reader>",
+"findings": [
+{"text": "<one self-contained finding with its specifics inline>", "locator": "<see locator rules>"}
+]
 }
 
 ## rules

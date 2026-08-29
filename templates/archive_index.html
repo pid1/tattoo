@@ -1,11 +1,10 @@
-{% extends "base.html" %}
-{% block title %}tattoo — archive{% endblock %}
-{% block content %}
+{% extends "base.html" %} {% block title %}tattoo — archive{% endblock %} {%
+block content %}
 <h1>archive</h1>
 <p class="meta"><a href="/dashboard/">latest briefing</a></p>
 <ul>
-{% for date in dates %}
+  {% for date in dates %}
   <li><a href="/archive/{{ date }}/">{{ date }}</a></li>
-{% endfor %}
+  {% endfor %}
 </ul>
 {% endblock %}

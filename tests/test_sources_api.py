@@ -61,13 +61,9 @@ def test_disable_is_reversible_and_keeps_rows(client, db):
 
     disabled = client.put(f"/api/sources/{src['id']}", json={"enabled": False}).json()
     assert disabled["enabled"] is False
-    assert (
-        db.execute("SELECT COUNT(*) AS n FROM items").fetchone()["n"] == 1
-    )  # history kept
+    assert db.execute("SELECT COUNT(*) AS n FROM items").fetchone()["n"] == 1  # history kept
 
-    assert client.put(f"/api/sources/{src['id']}", json={"enabled": True}).json()[
-        "enabled"
-    ]
+    assert client.put(f"/api/sources/{src['id']}", json={"enabled": True}).json()["enabled"]
 
 
 def test_purge_cascades(client, db):
@@ -91,9 +87,7 @@ def test_purge_cascades(client, db):
 
 def test_non_editable_field_rejected(client):
     src = _create(client).json()
-    resp = client.put(
-        f"/api/sources/{src['id']}", json={"feed_url": "https://other/feed"}
-    )
+    resp = client.put(f"/api/sources/{src['id']}", json={"feed_url": "https://other/feed"})
     assert resp.status_code == 400
 
 

@@ -204,7 +204,7 @@ Fixed in PRs #1 and #2 (both merged, image redeployed):
   (disabled). The API requires `max_tokens` on every call so there is no literal unlimited;
   billing is on tokens produced, not the cap.
 - The parser rejects a candidate lacking all expected keys, strips ```json fences, repairs
-  invalid JSON escapes (`\'` is not legal JSON), and distinguishes truncated from malformed.
+invalid JSON escapes (`\'` is not legal JSON), and distinguishes truncated from malformed.
 - `call_llm` raises on `stop_reason == "max_tokens"`, previously ignored entirely.
 - `extract_item` refuses to store an extraction with neither bluf nor findings.
 

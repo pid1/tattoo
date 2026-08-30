@@ -67,7 +67,4 @@ def test_import_is_idempotent(client):
 
 
 def test_import_bad_toml_422(client):
-    assert (
-        client.post("/api/import/config", json={"toml": "not [ toml"}).status_code
-        == 422
-    )
+    assert client.post("/api/import/config", json={"toml": "not [ toml"}).status_code == 422

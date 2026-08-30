@@ -23,10 +23,7 @@ def test_backup_creates_snapshot(isolated_env):
     # snapshot must be a readable sqlite db with the schema
     conn = sqlite3.connect(dest)
     try:
-        names = {
-            r[0]
-            for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        }
+        names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     finally:
         conn.close()
     assert "settings" in names

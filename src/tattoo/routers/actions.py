@@ -91,9 +91,7 @@ def import_config(body: dict, db: sqlite3.Connection = Depends(get_db)) -> dict:
     by feed_url, prompts as new versions (history preserved)."""
     raw = body.get("toml")
     if not raw:
-        raise HTTPException(
-            status_code=422, detail="body must be {'toml': '<export text>'}"
-        )
+        raise HTTPException(status_code=422, detail="body must be {'toml': '<export text>'}")
     try:
         parsed = tomllib.loads(raw)
     except tomllib.TOMLDecodeError as e:
@@ -134,9 +132,7 @@ def import_config(body: dict, db: sqlite3.Connection = Depends(get_db)) -> dict:
                 src.get("site_url"),
                 src.get("criteria") or "",
                 int(src.get("threshold") or 5),
-                int(
-                    src.get("daily_item_cap") or (5 if source_type == "youtube" else 10)
-                ),
+                int(src.get("daily_item_cap") or (5 if source_type == "youtube" else 10)),
                 int(bool(src.get("enabled", True))),
                 now,
                 now,

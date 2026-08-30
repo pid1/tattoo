@@ -178,23 +178,15 @@ def _sleep_backoff(attempt: int, base: float, retry_after: str | None) -> None:
     time.sleep(delay)
 
 
-def get_bytes(
-    url: str, headers: dict | None = None, timeout: float = DEFAULT_TIMEOUT
-) -> bytes:
+def get_bytes(url: str, headers: dict | None = None, timeout: float = DEFAULT_TIMEOUT) -> bytes:
     return _request("GET", url, headers=headers, timeout=timeout)
 
 
-def get_text(
-    url: str, headers: dict | None = None, timeout: float = DEFAULT_TIMEOUT
-) -> str:
-    return get_bytes(url, headers=headers, timeout=timeout).decode(
-        "utf-8", errors="replace"
-    )
+def get_text(url: str, headers: dict | None = None, timeout: float = DEFAULT_TIMEOUT) -> str:
+    return get_bytes(url, headers=headers, timeout=timeout).decode("utf-8", errors="replace")
 
 
-def get_json(
-    url: str, headers: dict | None = None, timeout: float = DEFAULT_TIMEOUT
-) -> Any:
+def get_json(url: str, headers: dict | None = None, timeout: float = DEFAULT_TIMEOUT) -> Any:
     return json.loads(get_bytes(url, headers=headers, timeout=timeout).decode("utf-8"))
 
 
@@ -208,9 +200,7 @@ def post_json(
     if headers:
         h.update(headers)
     body = json.dumps(payload).encode("utf-8")
-    return json.loads(
-        _request("POST", url, headers=h, body=body, timeout=timeout).decode("utf-8")
-    )
+    return json.loads(_request("POST", url, headers=h, body=body, timeout=timeout).decode("utf-8"))
 
 
 # -- html/text utilities (reveille port) --------------------------------------
@@ -253,9 +243,7 @@ def post_form(
     h = {"content-type": "application/x-www-form-urlencoded"}
     if headers:
         h.update(headers)
-    body = urllib.parse.urlencode(
-        {k: v for k, v in payload.items() if v is not None}
-    ).encode("utf-8")
-    return json.loads(
-        _request("POST", url, headers=h, body=body, timeout=timeout).decode("utf-8")
+    body = urllib.parse.urlencode({k: v for k, v in payload.items() if v is not None}).encode(
+        "utf-8"
     )
+    return json.loads(_request("POST", url, headers=h, body=body, timeout=timeout).decode("utf-8"))

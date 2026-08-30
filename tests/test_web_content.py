@@ -40,12 +40,8 @@ def test_short_feed_body_falls_through_to_extraction(monkeypatch):
         "fetch",
         lambda url, **k: base.FetchResult(200, b"<html>page</html>", None, None, url),
     )
-    monkeypatch.setattr(
-        web, "_extract_article", lambda body: "extracted article text " * 30
-    )
-    result = web.content(
-        _item(), {"feed_body_html": "<p>teaser</p>", "summary_html": ""}
-    )
+    monkeypatch.setattr(web, "_extract_article", lambda body: "extracted article text " * 30)
+    result = web.content(_item(), {"feed_body_html": "<p>teaser</p>", "summary_html": ""})
     assert result["method"] == "extracted"
     assert result["degraded"] is False
 
@@ -72,9 +68,7 @@ def test_thin_extraction_degrades(monkeypatch):
         lambda url, **k: base.FetchResult(200, b"<html>x</html>", None, None, url),
     )
     monkeypatch.setattr(web, "_extract_article", lambda body: "Home | About | Contact")
-    result = web.content(
-        _item(), {"feed_body_html": "", "summary_html": "<p>summary.</p>"}
-    )
+    result = web.content(_item(), {"feed_body_html": "", "summary_html": "<p>summary.</p>"})
     assert result["method"] == "summary_fallback"
     assert result["degraded"] is True
 

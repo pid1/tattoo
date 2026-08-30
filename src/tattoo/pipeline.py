@@ -38,9 +38,7 @@ def run(reason: str = "scheduled") -> None:
     conn = database.connect()
     judge.ensure_prompts(conn)
     started_at = datetime.now(UTC).isoformat(timespec="seconds")
-    cur = conn.execute(
-        "INSERT INTO runs (started_at, status) VALUES (?, 'running')", (started_at,)
-    )
+    cur = conn.execute("INSERT INTO runs (started_at, status) VALUES (?, 'running')", (started_at,))
     run_id = cur.lastrowid
     conn.commit()
     log("pipeline", "run started", run_id=run_id, reason=reason)
@@ -54,9 +52,7 @@ def run(reason: str = "scheduled") -> None:
             counts["seen"], new_entries = _poll_stage(conn, now)
             _acquire_stage(conn, now, new_entries)
         try:
-            counts["judged"], counts["passed"] = _judge_stage(
-                conn, run_id, now, reprocess
-            )
+            counts["judged"], counts["passed"] = _judge_stage(conn, run_id, now, reprocess)
         except judge.BudgetExceeded as e:
             # abort loudly (plan §9), but still render what got through
             status = "aborted_budget"
@@ -64,9 +60,7 @@ def run(reason: str = "scheduled") -> None:
             _notify_failure(conn, str(e), now)
 
         sections = _sections_for_today(conn, now)
-        page = render.write_pages(
-            now, {"sections": sections, "shadow_mode": _shadow(conn)}
-        )
+        page = render.write_pages(now, {"sections": sections, "shadow_mode": _shadow(conn)})
         log("pipeline", "pages written", run_id=run_id, path=str(page))
 
         if status == "ok":
@@ -112,9 +106,7 @@ def _poll_stage(conn, now: datetime) -> tuple[int, list]:
     a single failing source is recorded on its row and skipped, never fatal."""
     total_new = 0
     new_entries: list = []
-    sources = conn.execute(
-        "SELECT * FROM sources WHERE enabled = 1 ORDER BY id"
-    ).fetchall()
+    sources = conn.execute("SELECT * FROM sources WHERE enabled = 1 ORDER BY id").fetchall()
     for src in sources:
         adapter = ADAPTERS.get(src["type"])
         if adapter is None:
@@ -165,11 +157,7 @@ def _enrich_entries(conn, src, adapter, entries: list[dict]) -> list[dict]:
     if not entries:
         return entries
     try:
-        api_key = (
-            store.get_secret(conn, "youtube_api_key")
-            if src["type"] == "youtube"
-            else None
-        )
+        api_key = store.get_secret(conn, "youtube_api_key") if src["type"] == "youtube" else None
         if src["type"] == "youtube" and not api_key:
             log(
                 "poll",
@@ -191,9 +179,7 @@ def _enrich_entries(conn, src, adapter, entries: list[dict]) -> list[dict]:
 def _ingest(conn, src, entries: list[dict], now: datetime) -> list[tuple[int, dict]]:
     existing = {
         r["external_id"]
-        for r in conn.execute(
-            "SELECT external_id FROM items WHERE source_id = ?", (src["id"],)
-        )
+        for r in conn.execute("SELECT external_id FROM items WHERE source_id = ?", (src["id"],))
     }
     seen_batch: set[str] = set()
     fresh = []
@@ -400,7 +386,9 @@ def _judge_stage(conn, run_id: int, now: datetime, reprocess: bool) -> tuple[int
         # the acquire stage retries unfetched items for ACQUIRE_RETRY_DAYS, so
         # the gate has to look back just as far. bounded to today, an item
         # fetched a day late would be cached and then never judged at all.
-        where = "i.first_seen_at >= ? AND NOT EXISTS (SELECT 1 FROM judgments j WHERE j.item_id = i.id)"
+        where = (
+            "i.first_seen_at >= ? AND NOT EXISTS (SELECT 1 FROM judgments j WHERE j.item_id = i.id)"
+        )
         bound = (now.astimezone(UTC) - timedelta(days=ACQUIRE_RETRY_DAYS)).isoformat(
             timespec="seconds"
         )
@@ -412,15 +400,11 @@ def _judge_stage(conn, run_id: int, now: datetime, reprocess: bool) -> tuple[int
 
     judged = passed = 0
     for row in rows:
-        item = conn.execute(
-            "SELECT * FROM items WHERE id = ?", (row["item_id"],)
-        ).fetchone()
+        item = conn.execute("SELECT * FROM items WHERE id = ?", (row["item_id"],)).fetchone()
         content_row = conn.execute(
             "SELECT * FROM content WHERE item_id = ?", (item["id"],)
         ).fetchone()
-        source = conn.execute(
-            "SELECT * FROM sources WHERE id = ?", (item["source_id"],)
-        ).fetchone()
+        source = conn.execute("SELECT * FROM sources WHERE id = ?", (item["source_id"],)).fetchone()
         try:
             verdict = judge.triage_item(conn, run_id, item, content_row, source)
         except judge.BudgetExceeded:
@@ -478,12 +462,8 @@ def _sections_for_today(conn, now: datetime) -> list[dict]:
     shadow = _shadow(conn)
     day_start = _local_day_start_utc(now)
     utc_now = now.astimezone(UTC)
-    retry_cutoff = (utc_now - timedelta(days=ACQUIRE_RETRY_DAYS)).isoformat(
-        timespec="seconds"
-    )
-    expired_from = (utc_now - timedelta(days=ACQUIRE_RETRY_DAYS + 1)).isoformat(
-        timespec="seconds"
-    )
+    retry_cutoff = (utc_now - timedelta(days=ACQUIRE_RETRY_DAYS)).isoformat(timespec="seconds")
+    expired_from = (utc_now - timedelta(days=ACQUIRE_RETRY_DAYS + 1)).isoformat(timespec="seconds")
 
     # selected by *judgment* date, not first_seen: an item fetched a day late
     # is news to the reader on the day it is judged, and keying off first_seen
@@ -557,9 +537,7 @@ def _sections_for_today(conn, now: datetime) -> list[dict]:
             entry["findings"] = [
                 {
                     "text": f["text"],
-                    "url": _locator_url(
-                        item["source_type"], item["canonical_url"], f["locator"]
-                    ),
+                    "url": _locator_url(item["source_type"], item["canonical_url"], f["locator"]),
                 }
                 for f in conn.execute(
                     "SELECT text, locator FROM findings WHERE extraction_id = ? ORDER BY ordinal",
@@ -569,9 +547,7 @@ def _sections_for_today(conn, now: datetime) -> list[dict]:
         # passed the gate but produced no summary: the extraction call failed
         # (malformed json, api error). the item is still worth surfacing --
         # it cleared the bar -- but the card has to say why it is bare.
-        entry["extraction_failed"] = (
-            bool(passed) and not entry["bluf"] and not entry["findings"]
-        )
+        entry["extraction_failed"] = bool(passed) and not entry["bluf"] and not entry["findings"]
         grouped.setdefault(item["source_name"], []).append(entry)
 
     sections = []
@@ -616,9 +592,7 @@ def _digest(conn, sections: list[dict]) -> str:
             if entry["bluf"]:
                 lines.append(_esc(entry["bluf"]))
             for finding in entry["findings"][:2]:
-                lines.append(
-                    f'• {_esc(finding["text"])} <a href="{finding["url"]}">→</a>'
-                )
+                lines.append(f'• {_esc(finding["text"])} <a href="{finding["url"]}">→</a>')
         if len(gated) > 3:
             lines.append(f"(+{len(gated) - 3} more on the dashboard)")
         return "\n".join(lines)
@@ -667,9 +641,7 @@ def _prune_retention(conn, now: datetime) -> None:
     if days <= 0:
         return
     cutoff = (now.astimezone(UTC) - timedelta(days=days)).isoformat(timespec="seconds")
-    pruned_content = conn.execute(
-        "DELETE FROM content WHERE fetched_at < ?", (cutoff,)
-    ).rowcount
+    pruned_content = conn.execute("DELETE FROM content WHERE fetched_at < ?", (cutoff,)).rowcount
     pruned_findings = conn.execute(
         "DELETE FROM findings WHERE extraction_id IN"
         " (SELECT id FROM extractions WHERE created_at < ?)",

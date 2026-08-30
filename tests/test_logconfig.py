@@ -21,9 +21,7 @@ def _record(msg="hello", level=logging.INFO, args=None, exc_info=None):
 
 
 def test_server_line_is_json_with_shared_keys():
-    payload = json.loads(
-        JsonFormatter().format(_record("Application startup complete."))
-    )
+    payload = json.loads(JsonFormatter().format(_record("Application startup complete.")))
     assert payload["subsystem"] == "server"
     assert payload["level"] == "info"
     assert payload["msg"] == "Application startup complete."
@@ -57,9 +55,7 @@ def test_exception_lines_carry_error_type():
         import sys
 
         payload = json.loads(
-            JsonFormatter().format(
-                _record("failed", level=logging.ERROR, exc_info=sys.exc_info())
-            )
+            JsonFormatter().format(_record("failed", level=logging.ERROR, exc_info=sys.exc_info()))
         )
     assert payload["level"] == "error"
     assert payload["error_type"] == "RuntimeError"

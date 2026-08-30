@@ -50,9 +50,7 @@ def resolve(text: str, youtube_api_key: str | None) -> dict:
         return {"card": _card_from_parsed(url, "web", parsed, body)}
 
     # not a feed: discover <link rel="alternate"> candidates in the page head
-    candidates = _discover_feeds(
-        body.decode("utf-8", errors="replace"), result.final_url or url
-    )
+    candidates = _discover_feeds(body.decode("utf-8", errors="replace"), result.final_url or url)
     if not candidates:
         raise ResolveError("no feed found at that address")
     if len(candidates) > 1:
@@ -70,24 +68,18 @@ def _looks_like_youtube(text: str) -> bool:
 def _resolve_youtube(text: str, api_key: str | None) -> str:
     channel_id = None
 
-    match = re.search(r"channel_id=(UC[\w-]+)", text) or re.search(
-        r"/channel/(UC[\w-]+)", text
-    )
+    match = re.search(r"channel_id=(UC[\w-]+)", text) or re.search(r"/channel/(UC[\w-]+)", text)
     if match:
         channel_id = match.group(1)
 
     if channel_id is None:
         # a watch link usually arrives from the share sheet: resolve the
         # video to its channel (plan §8)
-        match = re.search(r"[?&]v=([\w-]{6,})", text) or re.search(
-            r"youtu\.be/([\w-]{6,})", text
-        )
+        match = re.search(r"[?&]v=([\w-]{6,})", text) or re.search(r"youtu\.be/([\w-]{6,})", text)
         if match:
             if not api_key:
                 raise ResolveError("resolving a video link needs the youtube api key")
-            resp = base.get_json(
-                f"{VIDEOS_API}?part=snippet&id={match.group(1)}&key={api_key}"
-            )
+            resp = base.get_json(f"{VIDEOS_API}?part=snippet&id={match.group(1)}&key={api_key}")
             items = resp.get("items", [])
             if not items:
                 raise ResolveError("video not found")
@@ -98,9 +90,7 @@ def _resolve_youtube(text: str, api_key: str | None) -> str:
         if match:
             if not api_key:
                 raise ResolveError("resolving a handle needs the youtube api key")
-            resp = base.get_json(
-                f"{CHANNELS_API}?part=id&forHandle={match.group(1)}&key={api_key}"
-            )
+            resp = base.get_json(f"{CHANNELS_API}?part=id&forHandle={match.group(1)}&key={api_key}")
             items = resp.get("items", [])
             if not items:
                 raise ResolveError(f"no channel found for {match.group(1)}")
@@ -129,9 +119,7 @@ class _FeedLinkParser(HTMLParser):
         if (attr.get("type") or "").lower() not in _FEED_MIME_TYPES:
             return
         if attr.get("href"):
-            self.links.append(
-                {"title": attr.get("title") or attr["href"], "href": attr["href"]}
-            )
+            self.links.append({"title": attr.get("title") or attr["href"], "href": attr["href"]})
 
 
 def _discover_feeds(html: str, base_url: str) -> list[dict]:

@@ -97,7 +97,4 @@ def test_unknown_prompt_404(client):
 
 
 def test_empty_prompt_rejected(client):
-    assert (
-        client.put("/api/prompts/triage_system", json={"value": "  "}).status_code
-        == 422
-    )
+    assert client.put("/api/prompts/triage_system", json={"value": "  "}).status_code == 422

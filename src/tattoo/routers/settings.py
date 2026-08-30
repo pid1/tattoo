@@ -23,15 +23,11 @@ def get_settings(db: sqlite3.Connection = Depends(get_db)) -> dict:
 def put_settings(body: dict, db: sqlite3.Connection = Depends(get_db)) -> dict:
     updates = body.get("settings")
     if not isinstance(updates, dict):
-        raise HTTPException(
-            status_code=422, detail="body must be {'settings': {key: value}}"
-        )
+        raise HTTPException(status_code=422, detail="body must be {'settings': {key: value}}")
     try:
         applied = store.apply_settings(db, updates)
     except KeyError as e:
-        raise HTTPException(
-            status_code=400, detail=f"unknown settings: {e.args[0]}"
-        ) from e
+        raise HTTPException(status_code=400, detail=f"unknown settings: {e.args[0]}") from e
     surface = store.settings_surface(db)
     surface["applied"] = applied
     return surface
@@ -111,17 +107,13 @@ def get_prompt_history(name: str, db: sqlite3.Connection = Depends(get_db)) -> d
 
 
 @router.post("/api/prompts/{name}/rollback")
-def rollback_prompt(
-    name: str, body: dict, db: sqlite3.Connection = Depends(get_db)
-) -> dict:
+def rollback_prompt(name: str, body: dict, db: sqlite3.Connection = Depends(get_db)) -> dict:
     _validate_prompt_name(name)
     judge.ensure_prompts(db)
     try:
         history_id = int(body["history_id"])
     except (KeyError, TypeError, ValueError) as e:
-        raise HTTPException(
-            status_code=422, detail="body must be {'history_id': int}"
-        ) from e
+        raise HTTPException(status_code=422, detail="body must be {'history_id': int}") from e
     try:
         judge.rollback_prompt(db, name, history_id)
     except ValueError as e:

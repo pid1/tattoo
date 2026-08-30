@@ -96,9 +96,7 @@ def create_source(body: dict, db: sqlite3.Connection = Depends(get_db)) -> dict:
             ),
         )
     except sqlite3.IntegrityError as e:
-        raise HTTPException(
-            status_code=409, detail="a source with that feed url exists"
-        ) from e
+        raise HTTPException(status_code=409, detail="a source with that feed url exists") from e
     db.commit()
     row = db.execute("SELECT * FROM sources WHERE id = ?", (cur.lastrowid,)).fetchone()
     return _row_to_dict(db, row)
@@ -113,17 +111,13 @@ def get_source(source_id: int, db: sqlite3.Connection = Depends(get_db)) -> dict
 
 
 @router.put("/api/sources/{source_id}")
-def update_source(
-    source_id: int, body: dict, db: sqlite3.Connection = Depends(get_db)
-) -> dict:
+def update_source(source_id: int, body: dict, db: sqlite3.Connection = Depends(get_db)) -> dict:
     row = db.execute("SELECT * FROM sources WHERE id = ?", (source_id,)).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="source not found")
     unknown = set(body) - _EDITABLE
     if unknown:
-        raise HTTPException(
-            status_code=400, detail=f"not editable: {', '.join(sorted(unknown))}"
-        )
+        raise HTTPException(status_code=400, detail=f"not editable: {', '.join(sorted(unknown))}")
 
     assignments, values = [], []
     for key, value in body.items():

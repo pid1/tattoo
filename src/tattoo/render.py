@@ -40,9 +40,7 @@ def write_pages(now: datetime, context: dict | None = None) -> Path:
     dated_dir = dist / "archive" / date_str
     dated_dir.mkdir(parents=True, exist_ok=True)
     dated_page = dated_dir / "index.html"
-    dated_page.write_text(
-        _env.get_template("briefing.html").render(**ctx), encoding="utf-8"
-    )
+    dated_page.write_text(_env.get_template("briefing.html").render(**ctx), encoding="utf-8")
 
     dashboard_dir = dist / "dashboard"
     dashboard_dir.mkdir(parents=True, exist_ok=True)

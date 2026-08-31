@@ -32,7 +32,7 @@ digest `sha256:49ae0c62…`, 225MB.
 
 1. Confirm external port **6565** is free: `netstat -tlnp | grep 6565` (or check the Unraid Docker page for conflicts). If taken, pick another and adjust every URL below.
 2. Create the appdata directories:
-   ```
+   ```bash
    mkdir -p /mnt/user/appdata/tattoo/data /mnt/user/appdata/tattoo/dist
    ```
 3. Create the container. Via the Unraid UI (preferred so it shows in the Docker tab with an icon and update tracking) or the equivalent CLI:

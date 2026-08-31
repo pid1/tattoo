@@ -244,7 +244,7 @@
       function setStatus(id, message, ok) {
         const el = document.getElementById(id);
         el.textContent = message;
-        el.className = "status " + (ok ? "ok" : "err");
+        el.className = `status ${ok ? "ok" : "err"}`;
         if (ok)
           setTimeout(() => {
             el.textContent = "";
@@ -284,11 +284,11 @@
           input.value = ""; /* never pre-fill secrets */
           const info = data.secrets[key];
           let hint = info.set
-            ? "set (" + info.hint + ") — leave blank to keep"
+            ? `set (${info.hint}) — leave blank to keep`
             : "not set";
           if (info.env_override)
             hint += " · env override active; the stored value is ignored";
-          document.getElementById(id + "-hint").textContent = hint;
+          document.getElementById(`${id}-hint`).textContent = hint;
         }
       }
 
@@ -312,7 +312,7 @@
           setStatus("save-status", "saved", true);
           await loadSettings();
         } catch (e) {
-          setStatus("save-status", "failed: " + e.message, false);
+          setStatus("save-status", `failed: ${e.message}`, false);
         }
       }
 
@@ -323,7 +323,7 @@
         const passRate =
           s.pass_rate_30d == null
             ? "–"
-            : Math.round(s.pass_rate_30d * 100) + "%";
+            : `${Math.round(s.pass_rate_30d * 100)}%`;
         return `
   <div class="source-card${src.enabled ? "" : " disabled"}" data-id="${src.id}">
     <h3>${esc(src.display_name)} <span class="meta">(${esc(src.type)}${src.enabled ? "" : " · disabled"})</span></h3>
@@ -381,12 +381,12 @@
               for (const el of card.querySelectorAll("[data-field]")) {
                 body[el.dataset.field] = el.value;
               }
-              await api("PUT", "/api/sources/" + id, body);
+              await api("PUT", `/api/sources/${id}`, body);
               status.textContent = "saved";
               status.className = "status ok";
             } else if (button.dataset.action === "toggle") {
               const enabled = !card.classList.contains("disabled");
-              await api("PUT", "/api/sources/" + id, { enabled: !enabled });
+              await api("PUT", `/api/sources/${id}`, { enabled: !enabled });
               await loadSources();
             } else if (button.dataset.action === "purge") {
               const name = card.querySelector("h3").textContent;
@@ -401,7 +401,7 @@
                 )
               )
                 return;
-              await api("DELETE", "/api/sources/" + id);
+              await api("DELETE", `/api/sources/${id}`);
               await loadSources();
             }
           } catch (err) {
@@ -473,12 +473,12 @@
 
       function renderCard(card) {
         const freq =
-          card.per_month == null ? "unknown" : card.per_month + " items/month";
+          card.per_month == null ? "unknown" : `${card.per_month} items/month`;
         document.getElementById("resolve-result").innerHTML = `
   <div class="resolve-card">
     <b>${esc(card.title)}</b> <span class="meta">(${esc(card.type)} · ~${esc(freq)})</span>
     ${card.content_situation ? `<div class="meta">${esc(card.content_situation)}</div>` : ""}
-    <ul>${card.recent.map((t) => "<li>" + esc(t) + "</li>").join("")}</ul>
+    <ul>${card.recent.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
     <button class="btn btn-primary"
             data-confirm='${esc(JSON.stringify(card))}'>Add source</button>
   </div>`;
@@ -487,8 +487,8 @@
       /* -- prompts ------------------------------------------------------------ */
 
       async function loadPrompt(name) {
-        const data = await api("GET", "/api/prompts/" + name);
-        document.getElementById("prompt-" + name).value = data.value;
+        const data = await api("GET", `/api/prompts/${name}`);
+        document.getElementById(`prompt-${name}`).value = data.value;
       }
 
       document
@@ -497,16 +497,16 @@
           button.addEventListener("click", async () => {
             const name = button.dataset.savePrompt;
             try {
-              await api("PUT", "/api/prompts/" + name, {
-                value: document.getElementById("prompt-" + name).value,
+              await api("PUT", `/api/prompts/${name}`, {
+                value: document.getElementById(`prompt-${name}`).value,
               });
               setStatus(
-                "prompt-" + name + "-status",
+                `prompt-${name}-status`,
                 "saved as new version",
                 true,
               );
             } catch (e) {
-              setStatus("prompt-" + name + "-status", e.message, false);
+              setStatus(`prompt-${name}-status`, e.message, false);
             }
           });
         });
@@ -515,7 +515,7 @@
         details.addEventListener("toggle", async () => {
           if (!details.open) return;
           const name = details.dataset.history;
-          const data = await api("GET", "/api/prompts/" + name + "/history");
+          const data = await api("GET", `/api/prompts/${name}/history`);
           details.querySelector(".history-list").innerHTML = data.history
             .map(
               (h) => `
@@ -538,12 +538,12 @@
         const button = e.target.closest("button[data-rollback]");
         if (!button) return;
         const name = button.dataset.name;
-        await api("POST", "/api/prompts/" + name + "/rollback", {
+        await api("POST", `/api/prompts/${name}/rollback`, {
           history_id: Number(button.dataset.rollback),
         });
         await loadPrompt(name);
         button.closest("details").open = false;
-        setStatus("prompt-" + name + "-status", "rolled back", true);
+        setStatus(`prompt-${name}-status`, "rolled back", true);
       });
 
       /* -- actions and tests --------------------------------------------------- */
@@ -578,11 +578,11 @@
           const data = await api("POST", url);
           setStatus(
             statusId,
-            data.success ? "✓ " + data.message : "✗ " + data.error,
+            data.success ? `✓ ${data.message}` : `✗ ${data.error}`,
             data.success,
           );
         } catch (e) {
-          setStatus(statusId, "✗ " + e.message, false);
+          setStatus(statusId, `✗ ${e.message}`, false);
         }
       }
       document
@@ -608,7 +608,7 @@
         loadPrompt("triage_system"),
         loadPrompt("extract_system"),
       ]).catch((e) =>
-        setStatus("save-status", "load failed: " + e.message, false),
+        setStatus("save-status", `load failed: ${e.message}`, false),
       );
     </script>
   </body>

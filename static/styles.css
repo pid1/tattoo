@@ -256,7 +256,7 @@ details.history summary {
 }
 
 .hidden {
-  display: none !important;
+  display: none;
 }
 
 @media (min-width: 640px) {

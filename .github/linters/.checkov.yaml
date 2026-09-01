@@ -1,6 +1,0 @@
----
-# CKV_DOCKER_2 wants a HEALTHCHECK. tattoo deliberately has none (plan §9:
-# logs are the observability surface), so the rule is skipped rather than
-# the decision reversed.
-skip-check:
-  - CKV_DOCKER_2

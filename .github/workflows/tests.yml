@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # zizmor/artipacked: this job only reads the tree.
+          # This job only reads the tree; no need to persist the token.
           persist-credentials: false
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:

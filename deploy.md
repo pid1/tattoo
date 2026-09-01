@@ -32,7 +32,7 @@ digest `sha256:49ae0c62…`, 225MB.
 
 1. Confirm external port **6565** is free: `netstat -tlnp | grep 6565` (or check the Unraid Docker page for conflicts). If taken, pick another and adjust every URL below.
 2. Create the appdata directories:
-   ```
+   ```bash
    mkdir -p /mnt/user/appdata/tattoo/data /mnt/user/appdata/tattoo/dist
    ```
 3. Create the container. Via the Unraid UI (preferred so it shows in the Docker tab with an icon and update tracking) or the equivalent CLI:
@@ -87,7 +87,6 @@ Two deviations:
 > recreated. Both test buttons returned green:
 > `connected to claude-haiku-4-5` and `test notification sent`.
 
-
 All of this is done in the settings UI (mobile-friendly; jon can do it from a phone). Ask jon for the secrets now.
 
 1. **Schedule section**: timezone `America/Chicago`; daily run time `21:00` (the name argues for evening — confirm with jon); page URL `http://rosedale-nas.tail117cd.ts.net:6565` (this becomes the Pushover tap-through link, with a daily cache-buster appended automatically). — ✅ pre-applied via `POST /api/import/config`, along with `run_token_budget=300000`, `retention_days=90`, `shadow_mode=true`. Run time left at the 21:00 default, **still needs jon's confirmation**.
@@ -102,41 +101,42 @@ Exit: both test buttons green, settings saved.
 
 Add via the **Sources** box (paste → Resolve → review confirmation card → Add). The card shows posting frequency and content situation — sanity-check both before adding. Confirmed seeds first, then the shadow-trial candidates (decided 2026-08-06, plan §2):
 
-| Source | Paste | Cap |
-|---|---|---|
-| Mike Tango Whiskey | `https://www.youtube.com/@Mike_Tango_Whiskey` | 5 |
-| S2 Underground | `https://www.youtube.com/channel/UCTq1zHztiV69Ur8t6jco4CQ` | 5 |
-| Civil Defense Engineer | `https://www.youtube.com/@CivilDefenseEngineer` | 5 |
-| CDC Health Alert Network | `https://tools.cdc.gov/api/v2/resources/media/285676.rss` — if resolution fails, find the current HAN RSS URL at cdc.gov/han | 10 |
-| The Provident Prepper (trial) | `https://www.youtube.com/@TheProvidentPrepper` | 5 |
-| MedCram (trial) | `https://www.youtube.com/@MedCram` (verify handle on the card) | 5 |
-| City Prepping (trial) | `https://www.youtube.com/c/CityPrepping` (or search the handle) | 5 |
-| Forward Observer (trial) | find their channel/feed; overlaps S2's Wire — pass-rate decides which survives | 5 |
-| SouthernPrepper1 (trial) | `https://www.youtube.com/@southernprepper1` | 5 |
+| Source                        | Paste                                                                                                                        | Cap |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --- |
+| Mike Tango Whiskey            | `https://www.youtube.com/@Mike_Tango_Whiskey`                                                                                | 5   |
+| S2 Underground                | `https://www.youtube.com/channel/UCTq1zHztiV69Ur8t6jco4CQ`                                                                   | 5   |
+| Civil Defense Engineer        | `https://www.youtube.com/@CivilDefenseEngineer`                                                                              | 5   |
+| CDC Health Alert Network      | `https://tools.cdc.gov/api/v2/resources/media/285676.rss` — if resolution fails, find the current HAN RSS URL at cdc.gov/han | 10  |
+| The Provident Prepper (trial) | `https://www.youtube.com/@TheProvidentPrepper`                                                                               | 5   |
+| MedCram (trial)               | `https://www.youtube.com/@MedCram` (verify handle on the card)                                                               | 5   |
+| City Prepping (trial)         | `https://www.youtube.com/c/CityPrepping` (or search the handle)                                                              | 5   |
+| Forward Observer (trial)      | find their channel/feed; overlaps S2's Wire — pass-rate decides which survives                                               | 5   |
+| SouthernPrepper1 (trial)      | `https://www.youtube.com/@southernprepper1`                                                                                  | 5   |
 
 Excluded by decision: food/product recall feeds, Canadian Prepper, anything overlapping reveille (local weather, ERCOT, Highland Village police/fire).
 
 **Resolved 2026-08-06 — 8 of 9 added (ids 1–8), all enabled, threshold 5, cap 5.**
 Corrections to the table above:
 
-| Runbook said | Reality |
-|---|---|
-| City Prepping `/c/CityPrepping` | 422 "could not work out a channel" — use `https://www.youtube.com/@CityPrepping` (`UCmb2QRAjdnkse21CtxAQ-cA`) |
+| Runbook said                               | Reality                                                                                                                                  |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| City Prepping `/c/CityPrepping`            | 422 "could not work out a channel" — use `https://www.youtube.com/@CityPrepping` (`UCmb2QRAjdnkse21CtxAQ-cA`)                            |
 | Forward Observer "find their channel/feed" | `https://www.youtube.com/@ForwardObserver` (`UCSqrUtY5pAE86yDVCk4OOnw`), 30/mo — same cadence as S2's Wire, so the overlap trial is live |
-| MedCram "verify handle" | Confirmed, resolves to "MedCram - Medical Lectures Explained CLEARLY" (`UCG-iSMVtWbbwDDXgXXypARQ`), 5.9/mo |
-| CDC HAN `285676.rss` | **Not HAN.** See below. |
+| MedCram "verify handle"                    | Confirmed, resolves to "MedCram - Medical Lectures Explained CLEARLY" (`UCG-iSMVtWbbwDDXgXXypARQ`), 5.9/mo                               |
+| CDC HAN `285676.rss`                       | **Not HAN.** See below.                                                                                                                  |
 
 **⚠️ CDC HAN dropped — no live feed exists.** The runbook's URL resolves to "CDC Outbreaks
-- US Based", a *food-outbreak* feed (Salmonella jalapeños/turtles/shell eggs, Cyclospora
-lettuce) — the exact category excluded above. It fails silently rather than erroring.
-Feed liveness check on 2026-08-06:
 
-| Feed | Items | Newest | Verdict |
-|---|---|---|---|
-| `createrss.asp?c=177` — genuine "Health Alert Network (HAN)" | 124 | **2023-09-01** | frozen archive |
-| `413690.rss` — "HAN Managed Feed" | **0** | — | empty, `lastBuildDate` 2025-03-31 |
-| `285676.rss` — "CDC Outbreaks - US Based" | 10 | 2026-08-06 | live, but excluded content |
-| `132608.rss` — "CDC Online Newsroom" | 1836 | 2026-08-05 | live, broad CDC press |
+- US Based", a _food-outbreak_ feed (Salmonella jalapeños/turtles/shell eggs, Cyclospora
+  lettuce) — the exact category excluded above. It fails silently rather than erroring.
+  Feed liveness check on 2026-08-06:
+
+| Feed                                                         | Items | Newest         | Verdict                           |
+| ------------------------------------------------------------ | ----- | -------------- | --------------------------------- |
+| `createrss.asp?c=177` — genuine "Health Alert Network (HAN)" | 124   | **2023-09-01** | frozen archive                    |
+| `413690.rss` — "HAN Managed Feed"                            | **0** | —              | empty, `lastBuildDate` 2025-03-31 |
+| `285676.rss` — "CDC Outbreaks - US Based"                    | 10    | 2026-08-06     | live, but excluded content        |
+| `132608.rss` — "CDC Online Newsroom"                         | 1836  | 2026-08-05     | live, broad CDC press             |
 
 jon's decision: **skip the CDC slot** rather than substitute excluded content. Revisit if CDC
 republishes a real HAN feed. The `web` source path and the 10-item cap are therefore
@@ -190,7 +190,7 @@ Two things came out of it:
 Run 1 stored **3 of 15 passing items as blank cards** — 20% of the briefing missing, with
 no error and no log line. Two causes through one silent path:
 
-- `EXTRACT_MAX_TOKENS = 2000` truncated the densest items mid-JSON (both recorded *exactly*
+- `EXTRACT_MAX_TOKENS = 2000` truncated the densest items mid-JSON (both recorded _exactly_
   2000 output tokens).
 - `_extract_json_object`'s brace fallback then skipped the unbalanced outer object and
   returned the first inner `findings` element — a dict with none of the keys the caller
@@ -204,17 +204,17 @@ Fixed in PRs #1 and #2 (both merged, image redeployed):
   (disabled). The API requires `max_tokens` on every call so there is no literal unlimited;
   billing is on tokens produced, not the cap.
 - The parser rejects a candidate lacking all expected keys, strips ```json fences, repairs
-  invalid JSON escapes (`\'` is not legal JSON), and distinguishes truncated from malformed.
+invalid JSON escapes (`\'` is not legal JSON), and distinguishes truncated from malformed.
 - `call_llm` raises on `stop_reason == "max_tokens"`, previously ignored entirely.
 - `extract_item` refuses to store an extraction with neither bluf nor findings.
 
 **Result across reprocesses of the same cached content:**
 
-| run | passed | missing | silently blank |
-|---|---|---|---|
-| 1 (before) | 15 | 0 | **3** |
-| 3 (after #1) | 16 | 1 | 0 |
-| 4 (after #2) | 15 | 2 | 0 |
+| run          | passed | missing | silently blank |
+| ------------ | ------ | ------- | -------------- |
+| 1 (before)   | 15     | 0       | **3**          |
+| 3 (after #1) | 16     | 1       | 0              |
+| 4 (after #2) | 15     | 2       | 0              |
 
 Silent data loss is gone. The residual 1–2 per run are **loud, logged skips** from the model
 emitting invalid JSON, plus one transient `HTTP 520` from the API. The durable fix for that
@@ -295,4 +295,3 @@ Leave a short ops note in the NAS documentation (wherever jon keeps it) covering
 - [x] Structured logs — 100% of container stdout is JSON (app, uvicorn access/error, migrations), filterable in Dozzle
 - [x] Failed extractions labelled "no summary" rather than rendering as bare cards
 - [ ] Ops note written
-

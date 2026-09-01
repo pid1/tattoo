@@ -148,7 +148,8 @@ def save_prompt(conn, name: str, value: str) -> int:
 def rollback_prompt(conn, name: str, history_id: int) -> None:
     """rollback = repoint and bump last_used_at; never inserts."""
     row = conn.execute(
-        "SELECT id FROM prompt_history WHERE id = ? AND field_name = ?", (history_id, name)
+        "SELECT id FROM prompt_history WHERE id = ? AND field_name = ?",
+        (history_id, name),
     ).fetchone()
     if row is None:
         raise ValueError(f"no history row {history_id} for {name}")
@@ -181,7 +182,12 @@ def prompt_history(conn, name: str) -> list[dict]:
 
 
 def call_llm(
-    conn, run_id: int | None, model: str, system_text: str, user_text: str, max_tokens: int
+    conn,
+    run_id: int | None,
+    model: str,
+    system_text: str,
+    user_text: str,
+    max_tokens: int,
 ) -> tuple[str, dict]:
     """one messages-api call with budget enforcement and usage accounting.
     returns (text, usage) -- text is the concatenated text blocks (thinking
@@ -196,7 +202,13 @@ def call_llm(
     payload = {
         "model": model,
         "max_tokens": max_tokens,
-        "system": [{"type": "text", "text": system_text, "cache_control": {"type": "ephemeral"}}],
+        "system": [
+            {
+                "type": "text",
+                "text": system_text,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ],
         "messages": [{"role": "user", "content": user_text}],
     }
     headers = {"x-api-key": api_key, "anthropic-version": ANTHROPIC_VERSION}
@@ -278,7 +290,17 @@ def triage_item(conn, run_id: int, item, content_row, source) -> dict:
     cur = conn.execute(
         "INSERT INTO judgments (item_id, run_id, prompt_history_id, score, justification,"
         " passed, created_at, input_tokens, output_tokens) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (item["id"], run_id, prompt_id, score, justification, int(passed), now, input_t, output_t),
+        (
+            item["id"],
+            run_id,
+            prompt_id,
+            score,
+            justification,
+            int(passed),
+            now,
+            input_t,
+            output_t,
+        ),
     )
     conn.commit()
     return {

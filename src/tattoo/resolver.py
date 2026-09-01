@@ -19,7 +19,11 @@ from tattoo.sources import base, web
 CHANNELS_API = "https://www.googleapis.com/youtube/v3/channels"
 VIDEOS_API = "https://www.googleapis.com/youtube/v3/videos"
 
-_FEED_MIME_TYPES = {"application/rss+xml", "application/atom+xml", "application/feed+json"}
+_FEED_MIME_TYPES = {
+    "application/rss+xml",
+    "application/atom+xml",
+    "application/feed+json",
+}
 
 
 class ResolveError(Exception):

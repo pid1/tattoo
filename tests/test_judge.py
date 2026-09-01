@@ -271,6 +271,7 @@ def test_extract_records_findings(db, monkeypatch):
     assert extraction["bluf"] == "the bottom line."
     assert json.loads(extraction["specifics"]) == ["42mm", "$120"]
     findings = db.execute(
-        "SELECT * FROM findings WHERE extraction_id = ? ORDER BY ordinal", (extraction_id,)
+        "SELECT * FROM findings WHERE extraction_id = ? ORDER BY ordinal",
+        (extraction_id,),
     ).fetchall()
     assert [f["locator"] for f in findings] == ["412s", None]

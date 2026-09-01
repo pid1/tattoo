@@ -14,7 +14,12 @@ def isolated_env(tmp_path, monkeypatch):
     monkeypatch.setenv("TATTOO_DIST_PATH", str(tmp_path / "dist"))
     monkeypatch.setenv("TATTOO_BACKUP_KEEP", "3")
     # secrets must come from the test, never the developer's shell
-    for var in ("ANTHROPIC_API_KEY", "PUSHOVER_API_KEY", "PUSHOVER_USER_KEY", "YOUTUBE_API_KEY"):
+    for var in (
+        "ANTHROPIC_API_KEY",
+        "PUSHOVER_API_KEY",
+        "PUSHOVER_USER_KEY",
+        "YOUTUBE_API_KEY",
+    ):
         monkeypatch.delenv(var, raising=False)
     yield
 

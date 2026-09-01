@@ -73,7 +73,11 @@ def test_send_skips_without_keys(monkeypatch, capsys):
 def test_send_builds_payload(monkeypatch):
     calls = _sent_payloads(monkeypatch)
     notifier.send_pushover(
-        "digest body", NOW, token="t", user_key="u", page_url="http://nas/dashboard/?d=2026-08-06"
+        "digest body",
+        NOW,
+        token="t",
+        user_key="u",
+        page_url="http://nas/dashboard/?d=2026-08-06",
     )
     assert len(calls) == 1
     payload = calls[0]
@@ -95,7 +99,9 @@ def test_send_never_raises(monkeypatch, capsys):
 
 def test_api_rejection_logged_not_raised(monkeypatch, capsys):
     monkeypatch.setattr(
-        notifier, "post_form", lambda *a, **k: {"status": 0, "errors": ["user key invalid"]}
+        notifier,
+        "post_form",
+        lambda *a, **k: {"status": 0, "errors": ["user key invalid"]},
     )
     notifier.send_pushover("digest", NOW, token="t", user_key="u")
     logged = json.loads(capsys.readouterr().out.strip().splitlines()[-1])

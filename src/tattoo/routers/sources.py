@@ -73,7 +73,8 @@ def create_source(body: dict, db: sqlite3.Connection = Depends(get_db)) -> dict:
     display_name = (body.get("display_name") or "").strip()
     if source_type not in ("web", "youtube") or not feed_url or not display_name:
         raise HTTPException(
-            status_code=422, detail="type (web|youtube), feed_url, and display_name are required"
+            status_code=422,
+            detail="type (web|youtube), feed_url, and display_name are required",
         )
     now = datetime.now(UTC).isoformat(timespec="seconds")
     try:

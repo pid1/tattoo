@@ -44,7 +44,12 @@ def ok(data: Any) -> dict:
 
 
 def unavailable(error: str) -> dict:
-    return {"status": "unavailable", "data": None, "error": error, "fetched_at": _now_iso()}
+    return {
+        "status": "unavailable",
+        "data": None,
+        "error": error,
+        "fetched_at": _now_iso(),
+    }
 
 
 def safe(fn: Callable[[], Any]) -> dict:
@@ -141,7 +146,11 @@ def fetch(
         except urllib.error.HTTPError as e:
             if e.code == 304:
                 return FetchResult(
-                    status=304, body=b"", etag=etag, last_modified=last_modified, final_url=url
+                    status=304,
+                    body=b"",
+                    etag=etag,
+                    last_modified=last_modified,
+                    final_url=url,
                 )
             retryable = e.code in _RETRYABLE_CODES and attempt < max_attempts
             if not retryable:
@@ -182,7 +191,10 @@ def get_json(url: str, headers: dict | None = None, timeout: float = DEFAULT_TIM
 
 
 def post_json(
-    url: str, payload: dict, headers: dict | None = None, timeout: float = DEFAULT_TIMEOUT
+    url: str,
+    payload: dict,
+    headers: dict | None = None,
+    timeout: float = DEFAULT_TIMEOUT,
 ) -> Any:
     h = {"content-type": "application/json"}
     if headers:
@@ -219,7 +231,10 @@ def strip_html(s: str) -> str:
 
 
 def post_form(
-    url: str, payload: dict, headers: dict | None = None, timeout: float = DEFAULT_TIMEOUT
+    url: str,
+    payload: dict,
+    headers: dict | None = None,
+    timeout: float = DEFAULT_TIMEOUT,
 ) -> Any:
     """form-encoded post for apis like pushover that don't accept json bodies.
     None values are dropped rather than sent as the string 'None'."""

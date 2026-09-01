@@ -28,18 +28,36 @@
   }
 }
 :root[data-theme="light"] {
-  --bg: #ffffff; --fg: #1a1a1a; --muted: #6b6b6b; --rule: #dddddd;
-  --accent: #0a5ad4; --card: #f6f6f6; --warn: #9a6700; --danger: #b3261e;
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #6b6b6b;
+  --rule: #dddddd;
+  --accent: #0a5ad4;
+  --card: #f6f6f6;
+  --warn: #9a6700;
+  --danger: #b3261e;
 }
 :root[data-theme="dark"] {
-  --bg: #121212; --fg: #e6e6e6; --muted: #9a9a9a; --rule: #333333;
-  --accent: #6ea8fe; --card: #1d1d1d; --warn: #d4a72c; --danger: #f2b8b5;
+  --bg: #121212;
+  --fg: #e6e6e6;
+  --muted: #9a9a9a;
+  --rule: #333333;
+  --accent: #6ea8fe;
+  --card: #1d1d1d;
+  --warn: #d4a72c;
+  --danger: #f2b8b5;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 body {
-  font-family: "Atkinson Hyperlegible Next", -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
+  font-family:
+    "Atkinson Hyperlegible Next",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   background: var(--bg);
   color: var(--fg);
   max-width: 640px;
@@ -49,10 +67,22 @@ body {
   line-height: 1.55;
   font-size: 16px;
 }
-h1 { font-size: 1.35rem; margin: 0 0 1rem; }
-h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
-a { color: var(--accent); overflow-wrap: anywhere; }
-.meta { color: var(--muted); font-size: 0.85rem; }
+h1 {
+  font-size: 1.35rem;
+  margin: 0 0 1rem;
+}
+h2 {
+  font-size: 1.05rem;
+  margin: 0 0 0.5rem;
+}
+a {
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+.meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
 
 /* sections */
 .border-container {
@@ -63,10 +93,22 @@ a { color: var(--accent); overflow-wrap: anywhere; }
 }
 
 /* forms -- 16px inputs so ios safari never zoom-jumps (plan §8) */
-.form-group { margin-bottom: 14px; }
-.form-group label { display: block; font-weight: 700; margin-bottom: 4px; }
-.form-group small { display: block; color: var(--muted); margin-top: 3px; }
-input, select, textarea {
+.form-group {
+  margin-bottom: 14px;
+}
+.form-group label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.form-group small {
+  display: block;
+  color: var(--muted);
+  margin-top: 3px;
+}
+input,
+select,
+textarea {
   width: 100%;
   font-size: 16px;
   font-family: inherit;
@@ -81,7 +123,11 @@ textarea {
   field-sizing: content; /* grows with content where supported */
   resize: vertical;
 }
-input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); }
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--accent);
+}
 
 /* buttons -- 44px minimum touch targets */
 .btn {
@@ -99,14 +145,33 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); }
   margin-right: 8px;
   margin-bottom: 8px;
 }
-.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
-.btn-danger { color: var(--danger); border-color: var(--danger); background: transparent; }
-.btn:disabled { opacity: 0.5; cursor: default; }
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+.btn-danger {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: transparent;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 
 /* inline status feedback (replaces rally's alert()) */
-.status { display: inline-block; margin-left: 4px; font-size: 0.9rem; }
-.status.ok { color: var(--accent); }
-.status.err { color: var(--danger); }
+.status {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 0.9rem;
+}
+.status.ok {
+  color: var(--accent);
+}
+.status.err {
+  color: var(--danger);
+}
 
 /* source cards -- stacked, never a table (plan §8) */
 .source-card {
@@ -116,12 +181,28 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); }
   margin-bottom: 12px;
   background: var(--card);
 }
-.source-card.disabled { opacity: 0.6; }
-.source-card h3 { margin: 0 0 4px; font-size: 1rem; }
-.source-stats { color: var(--muted); font-size: 0.85rem; margin: 4px 0 8px; }
-.source-edit { margin-top: 10px; border-top: 1px solid var(--rule); padding-top: 10px; }
+.source-card.disabled {
+  opacity: 0.6;
+}
+.source-card h3 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+.source-stats {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 4px 0 8px;
+}
+.source-edit {
+  margin-top: 10px;
+  border-top: 1px solid var(--rule);
+  padding-top: 10px;
+}
 /* destructive control kept visually and spatially away from routine ones */
-.purge-zone { margin-top: 14px; text-align: right; }
+.purge-zone {
+  margin-top: 14px;
+  text-align: right;
+}
 
 /* confirmation card for the add flow */
 .resolve-card {
@@ -130,11 +211,21 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); }
   padding: 12px;
   margin-top: 10px;
 }
-.resolve-card ul { margin: 6px 0; padding-left: 1.2rem; }
+.resolve-card ul {
+  margin: 6px 0;
+  padding-left: 1.2rem;
+}
 
 /* prompt history */
-details.history { margin-top: 8px; }
-details.history summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+details.history {
+  margin-top: 8px;
+}
+details.history summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
 .history-item {
   border: 1px solid var(--rule);
   border-radius: 5px;
@@ -142,7 +233,9 @@ details.history summary { cursor: pointer; min-height: 44px; display: flex; alig
   margin: 8px 0;
   font-size: 0.9rem;
 }
-.history-item.current { border-color: var(--accent); }
+.history-item.current {
+  border-color: var(--accent);
+}
 .history-item pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -162,8 +255,12 @@ details.history summary { cursor: pointer; min-height: 44px; display: flex; alig
   border-top: 1px solid var(--rule);
 }
 
-.hidden { display: none !important; }
+.hidden {
+  display: none;
+}
 
 @media (min-width: 640px) {
-  body { padding: 24px; }
+  body {
+    padding: 24px;
+  }
 }

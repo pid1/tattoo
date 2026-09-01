@@ -45,7 +45,9 @@ def no_politeness_sleep(monkeypatch):
 
 def test_poll_uses_video_id_as_external_id(monkeypatch):
     monkeypatch.setattr(
-        youtube.base, "fetch", lambda url, **k: base.FetchResult(200, FEED.encode(), None, None)
+        youtube.base,
+        "fetch",
+        lambda url, **k: base.FetchResult(200, FEED.encode(), None, None),
     )
     result = youtube.poll(_source())
     entry = result["entries"][0]

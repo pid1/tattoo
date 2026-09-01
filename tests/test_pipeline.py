@@ -198,7 +198,12 @@ def test_failing_source_never_fails_run(db, monkeypatch):
     def poll(src):
         if src["display_name"] == "bad":
             raise RuntimeError("HTTP 500 from https://bad.example/feed: boom")
-        return {"entries": _entries(2), "etag": None, "last_modified": None, "not_modified": False}
+        return {
+            "entries": _entries(2),
+            "etag": None,
+            "last_modified": None,
+            "not_modified": False,
+        }
 
     monkeypatch.setattr(pipeline.web, "poll", poll)
     pipeline.run("manual")
@@ -441,7 +446,10 @@ def _unfetched_item(db, first_seen: datetime):
     db.execute(
         "INSERT INTO items (source_id, external_id, canonical_url, title, normalized_title,"
         " published_at, first_seen_at) VALUES (1, 'x', 'https://e/x', 't', 't', ?, ?)",
-        (first_seen.isoformat(timespec="seconds"), first_seen.isoformat(timespec="seconds")),
+        (
+            first_seen.isoformat(timespec="seconds"),
+            first_seen.isoformat(timespec="seconds"),
+        ),
     )
     db.commit()
 

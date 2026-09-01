@@ -77,7 +77,14 @@ def run(reason: str = "scheduled") -> None:
         conn.execute(
             "UPDATE runs SET finished_at = ?, status = ?, items_seen = ?, items_judged = ?,"
             " items_passed = ? WHERE id = ?",
-            (finished_at, status, counts["seen"], counts["judged"], counts["passed"], run_id),
+            (
+                finished_at,
+                status,
+                counts["seen"],
+                counts["judged"],
+                counts["passed"],
+                run_id,
+            ),
         )
         conn.commit()
         conn.close()
@@ -488,7 +495,8 @@ def _sections_for_today(conn, now: datetime) -> list[dict]:
     grouped: dict[str, list[dict]] = {}
     for item in items:
         judgment = conn.execute(
-            "SELECT * FROM judgments WHERE item_id = ? ORDER BY id DESC LIMIT 1", (item["id"],)
+            "SELECT * FROM judgments WHERE item_id = ? ORDER BY id DESC LIMIT 1",
+            (item["id"],),
         ).fetchone()
         passed = bool(judgment["passed"]) if judgment else None
         if judgment and not passed and not shadow:
@@ -692,7 +700,9 @@ def _notify_failure(conn, error: str, now: datetime) -> None:
         )
     except Exception as e:
         log(
-            "pipeline", f"failure push crashed unexpectedly: {type(e).__name__}: {e}", level="error"
+            "pipeline",
+            f"failure push crashed unexpectedly: {type(e).__name__}: {e}",
+            level="error",
         )
 
 

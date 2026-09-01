@@ -3,12 +3,12 @@
   "title": "tattoo",
   "tags": ["tattoo"],
   "timezone": "browser",
-  "time": {"from": "now-30d", "to": "now"},
+  "time": { "from": "now-30d", "to": "now" },
   "panels": [
     {
       "title": "runs (status over time)",
       "type": "logs",
-      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0},
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
       "targets": [
         {
           "expr": "{container=\"tattoo\"} | json | subsystem = `pipeline` | msg = `run finished`"
@@ -18,7 +18,7 @@
     {
       "title": "items judged vs passed per run",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "targets": [
         {
           "expr": "sum by (status) (count_over_time({container=\"tattoo\"} | json | subsystem = `judge` | msg = `triaged` [1d]))",
@@ -33,7 +33,7 @@
     {
       "title": "triage scores by source (tuning instrument)",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "targets": [
         {
           "expr": "avg by (source) (avg_over_time({container=\"tattoo\"} | json | subsystem = `judge` | msg = `triaged` | unwrap score [1d]))",
@@ -44,7 +44,7 @@
     {
       "title": "acquisition method per item (bad extraction shows up here)",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "targets": [
         {
           "expr": "sum by (method) (count_over_time({container=\"tattoo\"} | json | subsystem = `acquire` | msg = `content stored` [1d]))",
@@ -55,7 +55,7 @@
     {
       "title": "warnings and errors",
       "type": "logs",
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "targets": [
         {
           "expr": "{container=\"tattoo\"} | json | level =~ `warn|error`"

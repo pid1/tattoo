@@ -58,7 +58,10 @@ def export_config(db: sqlite3.Connection = Depends(get_db)) -> str:
     """toml snapshot for backup / version control. secrets are excluded by
     construction (plan §0.4): only PUBLIC_SETTINGS keys are read."""
     judge.ensure_prompts(db)
-    lines = [f"# tattoo config export {datetime.now(UTC).isoformat(timespec='seconds')}", ""]
+    lines = [
+        f"# tattoo config export {datetime.now(UTC).isoformat(timespec='seconds')}",
+        "",
+    ]
     lines.append("[settings]")
     for key in store.PUBLIC_SETTINGS:
         lines.append(f"{key} = {_toml_str(store.get_setting(db, key, '') or '')}")

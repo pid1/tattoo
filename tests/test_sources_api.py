@@ -23,7 +23,9 @@ def test_create_applies_type_defaults(client):
     assert src["enabled"] is True
 
     yt = _create(
-        client, type="youtube", feed_url="https://www.youtube.com/feeds/videos.xml?channel_id=UCx"
+        client,
+        type="youtube",
+        feed_url="https://www.youtube.com/feeds/videos.xml?channel_id=UCx",
     ).json()
     assert yt["daily_item_cap"] == 5  # youtube default
 

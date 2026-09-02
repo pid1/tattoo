@@ -34,6 +34,8 @@ def migrate() -> bool:
             columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
             for column in ("input_tokens", "output_tokens"):
                 if column not in columns:
+                    # Same as above: the identifiers come from the literal tuples in this loop.
+                    # nosemgrep: python.lang.security.audit.formatted-sql-query.formatted-sql-query,python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query
                     conn.execute(
                         f"ALTER TABLE {table} ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0"
                     )

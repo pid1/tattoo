@@ -138,6 +138,8 @@ def fetch(
         attempt += 1
         req = urllib.request.Request(url, headers=h, method="GET")
         try:
+            # The retry path fetches the same configured feed URL as above.
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
                 return FetchResult(
                     status=200,

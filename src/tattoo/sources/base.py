@@ -80,6 +80,9 @@ def _request(
         h.update(headers)
     req = urllib.request.Request(url, data=body, headers=h, method=method)
     try:
+        # Fetching a configured source feed is what this function is for; the
+        # existing noqa records the same assessment for ruff.
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
             return resp.read()
     except urllib.error.HTTPError as e:
@@ -135,6 +138,8 @@ def fetch(
         attempt += 1
         req = urllib.request.Request(url, headers=h, method="GET")
         try:
+            # The retry path fetches the same configured feed URL as above.
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
                 return FetchResult(
                     status=200,

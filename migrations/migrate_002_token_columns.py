@@ -28,9 +28,14 @@ def migrate() -> bool:
     conn = sqlite3.connect(path)
     try:
         for table in ("judgments", "extractions"):
+            # `table` and `column` below both come from the literal tuples in this
+            # loop; identifiers cannot be bound parameters in SQLite DDL.
+            # nosemgrep: python.lang.security.audit.formatted-sql-query.formatted-sql-query,python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query
             columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
             for column in ("input_tokens", "output_tokens"):
                 if column not in columns:
+                    # Same as above: the identifiers come from the literal tuples in this loop.
+                    # nosemgrep: python.lang.security.audit.formatted-sql-query.formatted-sql-query,python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query
                     conn.execute(
                         f"ALTER TABLE {table} ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0"
                     )

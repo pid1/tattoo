@@ -132,6 +132,10 @@ def update_source(source_id: int, body: dict, db: sqlite3.Connection = Depends(g
     assignments.append("updated_at = ?")
     values.append(datetime.now(UTC).isoformat(timespec="seconds"))
     values.append(source_id)
+    # Every key is checked against _EDITABLE above and a request carrying any
+    # other key is rejected with a 400, so only literals reach the SQL text.
+    # Values stay bound.
+    # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query
     db.execute(f"UPDATE sources SET {', '.join(assignments)} WHERE id = ?", values)
     db.commit()
     row = db.execute("SELECT * FROM sources WHERE id = ?", (source_id,)).fetchone()

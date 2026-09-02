@@ -18,6 +18,9 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from tattoo import config
 
+# nosemgrep: python.flask.security.xss.audit.direct-use-of-jinja2.direct-use-of-jinja2
+# autoescape is on via select_autoescape below; the rule fires on any
+# Environment() regardless of how it is configured.
 _env = Environment(
     loader=FileSystemLoader(config.REPO_ROOT / "templates"),
     autoescape=select_autoescape(["html"]),

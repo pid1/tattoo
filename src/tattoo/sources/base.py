@@ -80,6 +80,9 @@ def _request(
         h.update(headers)
     req = urllib.request.Request(url, data=body, headers=h, method=method)
     try:
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+        # Fetching a configured source feed is what this function is for; the
+        # existing noqa records the same assessment for ruff.
         with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
             return resp.read()
     except urllib.error.HTTPError as e:

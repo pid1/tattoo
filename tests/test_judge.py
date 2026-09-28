@@ -180,7 +180,7 @@ def test_malformed_but_closed_is_not_reported_as_truncated():
 def test_model_max_output_known_and_unknown():
     assert judge.model_max_output("claude-sonnet-5-5") == 128_000
     assert judge.model_max_output("claude-haiku-4-5") == 64_000
-    assert judge.model_max_output("some-future-model") == judge.UNKNOWN_MODEL_MAX_OUTPUT
+    assert judge.model_max_output("some-future-model") == judge.UNKNOWN_MODEL_LIMITS[1]
 
 
 def test_resolve_max_tokens_zero_means_model_ceiling(db):
@@ -193,6 +193,33 @@ def test_resolve_max_tokens_explicit_and_garbage(db):
     assert judge.resolve_max_tokens(db, "extract_max_tokens", "claude-sonnet-5-5", 2000) == 12345
     store.set_setting(db, "extract_max_tokens", "not-a-number")
     assert judge.resolve_max_tokens(db, "extract_max_tokens", "claude-sonnet-5-5", 2000) == 2000
+
+
+def test_resolve_max_tokens_defaults_to_model_ceiling(db):
+    # no settings row: the store default (0) and the module default both
+    # mean the model's own maximum
+    for key, default in (
+        ("triage_max_tokens", judge.TRIAGE_MAX_TOKENS),
+        ("extract_max_tokens", judge.EXTRACT_MAX_TOKENS),
+    ):
+        assert judge.resolve_max_tokens(db, key, "claude-haiku-4-5", default) == 64_000
+    store.set_setting(db, "extract_max_tokens", "not-a-number")
+    assert (
+        judge.resolve_max_tokens(
+            db, "extract_max_tokens", "claude-sonnet-5-5", judge.EXTRACT_MAX_TOKENS
+        )
+        == 128_000
+    )
+
+
+def test_model_max_content_chars_fits_the_context_window():
+    for model in ("claude-sonnet-5-5", "claude-haiku-4-5", "some-future-model"):
+        context, max_output = judge._model_limits(model)
+        chars = judge.model_max_content_chars(model)
+        # the content plus a full-ceiling response fits inside the window
+        assert chars / judge.CONTENT_CHARS_PER_TOKEN + max_output < context
+    assert judge.model_max_content_chars("claude-sonnet-5-5") == 2_130_000
+    assert judge.model_max_content_chars("claude-haiku-4-5") == 290_000
 
 
 # -- triage ------------------------------------------------------------------

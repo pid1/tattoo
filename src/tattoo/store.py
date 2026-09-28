@@ -28,8 +28,8 @@ SECRET_ENV = {
 DEFAULTS = {
     "schedule_time": "21:00",
     "retention_days": "90",
-    "triage_max_tokens": "1000",
-    "extract_max_tokens": "2000",
+    "triage_max_tokens": "0",
+    "extract_max_tokens": "0",
     "shadow_mode": "true",
     "triage_model": "claude-haiku-4-5",
     "extract_model": "claude-sonnet-5-5",

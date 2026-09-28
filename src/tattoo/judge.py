@@ -29,36 +29,40 @@ ANTHROPIC_VERSION = "2023-06-01"
 
 PROMPT_NAMES = ("triage_system", "extract_system")
 
-# content is clipped before judging: a three-hour transcript must not blow
-# the context window or the budget (plan §2)
-MAX_CONTENT_CHARS = 60_000
-
 # per-call output ceilings. these are the defaults only: the settings keys
-# triage_max_tokens / extract_max_tokens override them, and 0 there means
-# "the model's own maximum" (see resolve_max_tokens). the api requires
+# triage_max_tokens / extract_max_tokens override them, and 0 (the default)
+# means "the model's own maximum" (see resolve_max_tokens). the api requires
 # max_tokens on every call, so there is no literal unlimited -- the model
 # ceiling is as close as it gets. billing is on tokens actually produced,
 # not on the cap, so raising it costs nothing until output actually grows.
-TRIAGE_MAX_TOKENS = 1000
-EXTRACT_MAX_TOKENS = 2000
+TRIAGE_MAX_TOKENS = 0
+EXTRACT_MAX_TOKENS = 0
 
-# max output tokens per model (docs, 2026-09). a cap above the model's own
-# limit is a 400, so an unknown model falls back to a value every current
-# model accepts rather than guessing high.
-MODEL_MAX_OUTPUT = {
-    "claude-fable-5-1": 128_000,
-    "claude-opus-5-5": 128_000,
-    "claude-opus-5": 128_000,
-    "claude-fable-5": 128_000,
-    "claude-opus-4-8": 128_000,
-    "claude-opus-4-7": 128_000,
-    "claude-opus-4-6": 128_000,
-    "claude-sonnet-5-5": 128_000,
-    "claude-sonnet-5": 128_000,
-    "claude-sonnet-4-6": 128_000,
-    "claude-haiku-4-5": 64_000,
+# (context window, max output) per model, in tokens (docs, 2026-09). a cap
+# above the model's own output limit is a 400, so an unknown model falls
+# back to limits every current model accepts rather than guessing high.
+MODEL_LIMITS = {
+    "claude-fable-5-1": (1_000_000, 128_000),
+    "claude-opus-5-5": (1_000_000, 128_000),
+    "claude-opus-5": (1_000_000, 128_000),
+    "claude-fable-5": (1_000_000, 128_000),
+    "claude-opus-4-8": (1_000_000, 128_000),
+    "claude-opus-4-7": (1_000_000, 128_000),
+    "claude-opus-4-6": (1_000_000, 128_000),
+    "claude-sonnet-5-5": (1_000_000, 128_000),
+    "claude-sonnet-5": (1_000_000, 128_000),
+    "claude-sonnet-4-6": (1_000_000, 128_000),
+    "claude-haiku-4-5": (200_000, 64_000),
 }
-UNKNOWN_MODEL_MAX_OUTPUT = 8192
+UNKNOWN_MODEL_LIMITS = (200_000, 8192)
+
+# content is clipped only as far as the context window forces: the api
+# rejects a request whose input plus max_tokens exceeds the window, so the
+# full output ceiling is reserved, plus headroom for the system prompt and
+# criteria. chars-per-token is deliberately low so dense text (code, urls,
+# non-english) still fits.
+PROMPT_HEADROOM_TOKENS = 20_000
+CONTENT_CHARS_PER_TOKEN = 2.5
 
 DEFAULT_RUN_TOKEN_BUDGET = 300_000
 
@@ -77,31 +81,43 @@ class TruncatedResponse(RuntimeError):
     response because the fix is a bigger ceiling, not a better prompt."""
 
 
-def model_max_output(model: str) -> int:
-    limit = MODEL_MAX_OUTPUT.get((model or "").strip())
-    if limit is None:
+def _model_limits(model: str) -> tuple[int, int]:
+    limits = MODEL_LIMITS.get((model or "").strip())
+    if limits is None:
         log(
             "judge",
-            "unknown model, capping output conservatively",
+            "unknown model, capping context and output conservatively",
             level="warn",
             model=model,
-            max_tokens=UNKNOWN_MODEL_MAX_OUTPUT,
+            context=UNKNOWN_MODEL_LIMITS[0],
+            max_tokens=UNKNOWN_MODEL_LIMITS[1],
         )
-        return UNKNOWN_MODEL_MAX_OUTPUT
-    return limit
+        return UNKNOWN_MODEL_LIMITS
+    return limits
+
+
+def model_max_output(model: str) -> int:
+    return _model_limits(model)[1]
+
+
+def model_max_content_chars(model: str) -> int:
+    """the most content that fits beside a full-ceiling response."""
+    context, max_output = _model_limits(model)
+    return int((context - max_output - PROMPT_HEADROOM_TOKENS) * CONTENT_CHARS_PER_TOKEN)
 
 
 def resolve_max_tokens(conn, key: str, model: str, default: int) -> int:
     """settings value wins; 0 means the model's own ceiling; anything
-    unparseable falls back to the default rather than failing the run."""
+    unparseable or negative falls back to the default rather than failing
+    the run."""
     raw = store.get_setting(conn, key, str(default))
     try:
         value = int(str(raw).strip())
     except ValueError:
-        return default
-    if value == 0:
-        return model_max_output(model)
-    return value if value > 0 else default
+        value = default
+    if value < 0:
+        value = default
+    return value if value > 0 else model_max_output(model)
 
 
 # -- prompt versioning (rally's history + pointer pattern) -----------------
@@ -279,7 +295,7 @@ def triage_item(conn, run_id: int, item, content_row, source) -> dict:
     prompt_id, system_text = current_prompt(conn, "triage_system")
     model = store.get_setting(conn, "triage_model")
 
-    user_text = _triage_user_prompt(item, content_row, source)
+    user_text = _triage_user_prompt(item, content_row, source, model)
     max_tokens = resolve_max_tokens(conn, "triage_max_tokens", model, TRIAGE_MAX_TOKENS)
     raw, usage = call_llm(conn, run_id, model, system_text, user_text, max_tokens)
     parsed = _extract_json_object(raw, required_keys=("score", "justification"))
@@ -314,7 +330,7 @@ def triage_item(conn, run_id: int, item, content_row, source) -> dict:
     }
 
 
-def _triage_user_prompt(item, content_row, source) -> str:
+def _triage_user_prompt(item, content_row, source, model: str) -> str:
     criteria = (source["criteria"] or "").strip() or GENERIC_CRITERIA
     degraded = bool(item["degraded"])
     return (
@@ -323,7 +339,7 @@ def _triage_user_prompt(item, content_row, source) -> str:
         f"DEGRADED: {'true' if degraded else 'false'}"
         f" (acquisition: {content_row['method']})\n"
         f"TITLE: {item['title']}\n"
-        f"CONTENT:\n{content_row['text'][:MAX_CONTENT_CHARS]}"
+        f"CONTENT:\n{content_row['text'][: model_max_content_chars(model)]}"
     )
 
 
@@ -339,7 +355,7 @@ def extract_item(conn, run_id: int, item, content_row, source) -> int:
     user_text = (
         f"SOURCE: {source['display_name']} ({source['type']})\n"
         f"TITLE: {item['title']}\n"
-        f"CONTENT:\n{content_row['text'][:MAX_CONTENT_CHARS]}"
+        f"CONTENT:\n{content_row['text'][: model_max_content_chars(model)]}"
     )
     max_tokens = resolve_max_tokens(conn, "extract_max_tokens", model, EXTRACT_MAX_TOKENS)
     raw, usage = call_llm(conn, run_id, model, system_text, user_text, max_tokens)

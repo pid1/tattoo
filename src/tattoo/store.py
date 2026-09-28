@@ -32,7 +32,7 @@ DEFAULTS = {
     "extract_max_tokens": "2000",
     "shadow_mode": "true",
     "triage_model": "claude-haiku-4-5",
-    "extract_model": "claude-sonnet-5",
+    "extract_model": "claude-sonnet-5-5",
 }
 
 

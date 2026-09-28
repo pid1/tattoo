@@ -42,15 +42,18 @@ MAX_CONTENT_CHARS = 60_000
 TRIAGE_MAX_TOKENS = 1000
 EXTRACT_MAX_TOKENS = 2000
 
-# max output tokens per model (docs, 2026-08). a cap above the model's own
+# max output tokens per model (docs, 2026-09). a cap above the model's own
 # limit is a 400, so an unknown model falls back to a value every current
 # model accepts rather than guessing high.
 MODEL_MAX_OUTPUT = {
+    "claude-fable-5-1": 128_000,
+    "claude-opus-5-5": 128_000,
     "claude-opus-5": 128_000,
     "claude-fable-5": 128_000,
     "claude-opus-4-8": 128_000,
     "claude-opus-4-7": 128_000,
     "claude-opus-4-6": 128_000,
+    "claude-sonnet-5-5": 128_000,
     "claude-sonnet-5": 128_000,
     "claude-sonnet-4-6": 128_000,
     "claude-haiku-4-5": 64_000,

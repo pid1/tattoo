@@ -178,21 +178,21 @@ def test_malformed_but_closed_is_not_reported_as_truncated():
 
 
 def test_model_max_output_known_and_unknown():
-    assert judge.model_max_output("claude-sonnet-5") == 128_000
+    assert judge.model_max_output("claude-sonnet-5-5") == 128_000
     assert judge.model_max_output("claude-haiku-4-5") == 64_000
     assert judge.model_max_output("some-future-model") == judge.UNKNOWN_MODEL_MAX_OUTPUT
 
 
 def test_resolve_max_tokens_zero_means_model_ceiling(db):
     store.set_setting(db, "extract_max_tokens", "0")
-    assert judge.resolve_max_tokens(db, "extract_max_tokens", "claude-sonnet-5", 2000) == 128_000
+    assert judge.resolve_max_tokens(db, "extract_max_tokens", "claude-sonnet-5-5", 2000) == 128_000
 
 
 def test_resolve_max_tokens_explicit_and_garbage(db):
     store.set_setting(db, "extract_max_tokens", "12345")
-    assert judge.resolve_max_tokens(db, "extract_max_tokens", "claude-sonnet-5", 2000) == 12345
+    assert judge.resolve_max_tokens(db, "extract_max_tokens", "claude-sonnet-5-5", 2000) == 12345
     store.set_setting(db, "extract_max_tokens", "not-a-number")
-    assert judge.resolve_max_tokens(db, "extract_max_tokens", "claude-sonnet-5", 2000) == 2000
+    assert judge.resolve_max_tokens(db, "extract_max_tokens", "claude-sonnet-5-5", 2000) == 2000
 
 
 # -- triage ------------------------------------------------------------------

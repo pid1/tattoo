@@ -39,7 +39,10 @@ def test_llm(db: sqlite3.Connection = Depends(get_db)) -> dict:
     1-token call against the configured key and triage model."""
     model = store.get_setting(db, "triage_model")
     try:
-        judge.call_llm(db, None, model, "reply with the single word: ok", "hi", 8)
+        # thinking shares max_tokens with the reply, and sonnet 5.5 thinks by
+        # default: a cap of 8 was spent on thinking and came back textless.
+        # billing is on tokens produced, so the headroom costs nothing.
+        judge.call_llm(db, None, model, "reply with the single word: ok", "hi", 1024)
         return {"success": True, "message": f"connected to {model}"}
     except Exception as e:
         return {"success": False, "error": f"{type(e).__name__}: {e}"}

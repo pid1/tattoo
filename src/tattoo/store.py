@@ -28,8 +28,6 @@ SECRET_ENV = {
 DEFAULTS = {
     "schedule_time": "21:00",
     "retention_days": "90",
-    "triage_max_tokens": "0",
-    "extract_max_tokens": "0",
     "shadow_mode": "true",
     "triage_model": "claude-sonnet-5-5",
     "extract_model": "claude-sonnet-5-5",
@@ -84,9 +82,6 @@ PUBLIC_SETTINGS = (
     "page_url",
     "triage_model",
     "extract_model",
-    "triage_max_tokens",
-    "extract_max_tokens",
-    "run_token_budget",
     "retention_days",
     "shadow_mode",
 )

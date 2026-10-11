@@ -51,20 +51,13 @@ def run(reason: str = "scheduled") -> None:
         if not reprocess:
             counts["seen"], new_entries = _poll_stage(conn, now)
             _acquire_stage(conn, now, new_entries)
-        try:
-            counts["judged"], counts["passed"] = _judge_stage(conn, run_id, now, reprocess)
-        except judge.BudgetExceeded as e:
-            # abort loudly (plan §9), but still render what got through
-            status = "aborted_budget"
-            log("pipeline", f"aborted: {e}", level="error", run_id=run_id)
-            _notify_failure(conn, str(e), now)
+        counts["judged"], counts["passed"] = _judge_stage(conn, run_id, now, reprocess)
 
         sections = _sections_for_today(conn, now)
         page = render.write_pages(now, {"sections": sections, "shadow_mode": _shadow(conn)})
         log("pipeline", "pages written", run_id=run_id, path=str(page))
 
-        if status == "ok":
-            _notify(conn, _digest(conn, sections), now)
+        _notify(conn, _digest(conn, sections), now)
         if reason == "scheduled":
             _prune_retention(conn, now)
     except Exception as e:
@@ -407,8 +400,6 @@ def _judge_stage(conn, run_id: int, now: datetime, reprocess: bool) -> tuple[int
         source = conn.execute("SELECT * FROM sources WHERE id = ?", (item["source_id"],)).fetchone()
         try:
             verdict = judge.triage_item(conn, run_id, item, content_row, source)
-        except judge.BudgetExceeded:
-            raise
         except Exception as e:
             # one bad response must not sink the batch
             log(
@@ -432,8 +423,6 @@ def _judge_stage(conn, run_id: int, now: datetime, reprocess: bool) -> tuple[int
         passed += 1
         try:
             judge.extract_item(conn, run_id, item, content_row, source)
-        except judge.BudgetExceeded:
-            raise
         except Exception as e:
             log(
                 "judge",

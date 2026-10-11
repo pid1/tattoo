@@ -36,13 +36,15 @@ def put_settings(body: dict, db: sqlite3.Connection = Depends(get_db)) -> dict:
 @router.post("/api/settings/test-llm")
 def test_llm(db: sqlite3.Connection = Depends(get_db)) -> dict:
     """rally's verify-on-save shape: {success, message|error}. a real
-    1-token call against the configured key and triage model."""
+    one-word call against the configured key and triage model."""
     model = store.get_setting(db, "triage_model")
     try:
         # thinking shares max_tokens with the reply, and sonnet 5.5 thinks by
         # default: a cap of 8 was spent on thinking and came back textless.
-        # billing is on tokens produced, so the headroom costs nothing.
-        judge.call_llm(db, None, model, "reply with the single word: ok", "hi", 1024)
+        # same ceiling as a real run (the model's maximum); billing is on
+        # tokens produced, so the headroom costs nothing.
+        max_tokens = judge.model_max_output(db, model)
+        judge.call_llm(db, None, model, "reply with the single word: ok", "hi", max_tokens)
         return {"success": True, "message": f"connected to {model}"}
     except Exception as e:
         return {"success": False, "error": f"{type(e).__name__}: {e}"}

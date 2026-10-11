@@ -4,7 +4,7 @@ A plan for an agent to bring tattoo into production on the Unraid NAS. The code 
 
 Context you need before starting:
 
-- tattoo is a daily feed digest: polls RSS/Atom and YouTube feeds, caches full content, runs a two-pass LLM usefulness gate (Haiku triage → Sonnet extraction), publishes a static briefing plus a Pushover digest. Full design doc: `~/workdir/jro/tattoo-plan.md`. Repo conventions: `AGENTS.md` in the repo.
+- tattoo is a daily feed digest: polls RSS/Atom and YouTube feeds, caches full content, runs a two-pass LLM usefulness gate (Sonnet triage → Sonnet extraction), publishes a static briefing plus a Pushover digest. Full design doc: `~/workdir/jro/tattoo-plan.md`. Repo conventions: `AGENTS.md` in the repo.
 - Target host: the Unraid NAS (`rosedale-nas`), already on the tailnet at `rosedale-nas.tail117cd.ts.net`, with an existing Alloy → Loki → Grafana logging stack that scrapes container stdout.
 - **Security posture is tailnet-only: no auth, no CSRF, no HTTPS.** Never expose the port beyond the tailnet/LAN.
 - The service is a single container: uvicorn + an in-process scheduler thread. It has **no healthcheck endpoint by design** — structured JSON logs are the observability surface.
@@ -90,7 +90,7 @@ Two deviations:
 All of this is done in the settings UI (mobile-friendly; jon can do it from a phone). Ask jon for the secrets now.
 
 1. **Schedule section**: timezone `America/Chicago`; daily run time `21:00` (the name argues for evening — confirm with jon); page URL `http://rosedale-nas.tail117cd.ts.net:6565` (this becomes the Pushover tap-through link, with a daily cache-buster appended automatically). — ✅ pre-applied via `POST /api/import/config`, along with `run_token_budget=300000`, `retention_days=90`, `shadow_mode=true`. Run time left at the 21:00 default, **still needs jon's confirmation**.
-2. **LLM section**: Anthropic API key (skip if provided via `.env` — the field shows "env override active"); models default to `claude-haiku-5-5` (triage) and `claude-sonnet-5-5` (extraction), leave as-is; run token budget default `300000` — leave, revisit in Phase 6; **shadow mode ON** (default — do not turn it off yet). Press **Test connection** → expect "✓ connected to claude-haiku-4-5".
+2. **LLM section**: Anthropic API key (skip if provided via `.env` — the field shows "env override active"); models default to `claude-sonnet-5-5` (triage) and `claude-sonnet-5-5` (extraction), leave as-is; run token budget default `300000` — leave, revisit in Phase 6; **shadow mode ON** (default — do not turn it off yet). Press **Test connection** → expect "✓ connected to claude-sonnet-5-5".
 3. **Pushover section**: create an application named `tattoo` at pushover.net/apps if one doesn't exist, enter the app token and user key, press **Send test notification** → confirm it arrives on jon's phone.
 4. **YouTube section**: Data API key. If one must be created: Google Cloud console → new or existing project → enable "YouTube Data API v3" → Credentials → API key (restrict it to that API). The free 10k units/day quota is ample (~1 unit per 50 videos enriched). Without this key, @handle/watch-link resolution fails and Shorts/premieres are not filtered — it is effectively required.
 5. Retention: 90 days (default).

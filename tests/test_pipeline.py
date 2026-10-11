@@ -370,19 +370,6 @@ def test_reprocess_rejudges_without_polling(db, monkeypatch):
     assert scores == [2, 9]  # both judgments kept: shadow comparisons need history
 
 
-def test_budget_abort_recorded_and_page_still_written(db, monkeypatch):
-    _seed_source(db, threshold=5)
-    _patch_poll(monkeypatch, _entries(3))
-    _patch_gate(monkeypatch, {"item": 8})
-    store.set_setting(db, "anthropic_api_key", "k")
-    store.set_setting(db, "run_token_budget", "12")  # first call exhausts it
-
-    pipeline.run("manual")
-
-    assert db.execute("SELECT status FROM runs").fetchone()["status"] == "aborted_budget"
-    assert (config.dist_path() / "dashboard" / "index.html").exists()
-
-
 # -- rendering, digest, locators ---------------------------------------------
 
 

@@ -50,6 +50,33 @@ def test_unknown_key_rejected(client):
     assert resp.status_code == 400
 
 
+def test_retired_token_limit_keys_not_surfaced(client, db):
+    """a stale row from before the token limits were retired is ignored."""
+    store.set_setting(db, "run_token_budget", "300000")
+    data = client.get("/api/settings").json()
+    assert "run_token_budget" not in data["settings"]
+    assert "triage_max_tokens" not in data["settings"]
+
+
+def test_test_llm_asks_for_the_model_maximum(client, db, monkeypatch):
+    from tattoo import judge
+
+    store.set_setting(db, "anthropic_api_key", "k")
+    sent = []
+
+    def fake_post_json(url, payload, headers=None, timeout=None):
+        sent.append(payload)
+        return {
+            "content": [{"type": "text", "text": "ok"}],
+            "usage": {"input_tokens": 1, "output_tokens": 1},
+        }
+
+    monkeypatch.setattr(judge.base, "post_json", fake_post_json)
+    assert client.post("/api/settings/test-llm").json()["success"] is True
+    model = store.get_setting(db, "triage_model")
+    assert sent[0]["max_tokens"] == judge.model_max_output(db, model)
+
+
 def test_env_override_reported(client, db, monkeypatch):
     monkeypatch.setenv("PUSHOVER_API_KEY", "env-token-1234")
     data = client.get("/api/settings").json()

@@ -1,5 +1,6 @@
 """gate contracts (plan §5, §0.5): prompt versioning semantics, strict-json
-parsing with the prose fallback, token accounting, and the budget abort."""
+parsing with the prose fallback, token accounting, and model limits (every
+call asks for the model's own maximum output -- there are no token limits)."""
 
 import json
 
@@ -177,50 +178,71 @@ def test_malformed_but_closed_is_not_reported_as_truncated():
     assert not isinstance(exc.value, judge.TruncatedResponse)
 
 
-def test_model_max_output_known_and_unknown():
-    assert judge.model_max_output("claude-sonnet-5-5") == 128_000
-    assert judge.model_max_output("claude-haiku-5-5") == 128_000
-    assert judge.model_max_output("claude-haiku-4-5") == 64_000
-    assert judge.model_max_output("some-future-model") == judge.UNKNOWN_MODEL_LIMITS[1]
+def _patch_models_api(monkeypatch, response=None, error=None):
+    """fake GET /v1/models/{id}; the per-process cache starts empty."""
+    calls = []
+
+    def fake_get_json(url, headers=None, timeout=None):
+        calls.append((url, headers))
+        if error is not None:
+            raise error
+        return response
+
+    monkeypatch.setattr(judge, "_FETCHED_LIMITS", {})
+    monkeypatch.setattr(judge.base, "get_json", fake_get_json)
+    return calls
 
 
-def test_resolve_max_tokens_zero_means_model_ceiling(db):
-    store.set_setting(db, "extract_max_tokens", "0")
-    assert judge.resolve_max_tokens(db, "extract_max_tokens", "claude-sonnet-5-5", 2000) == 128_000
+def test_model_max_output_known(db, monkeypatch):
+    calls = _patch_models_api(monkeypatch, error=AssertionError("known models never hit the api"))
+    assert judge.model_max_output(db, "claude-sonnet-5-5") == 128_000
+    assert judge.model_max_output(db, "claude-haiku-5-5") == 128_000
+    assert judge.model_max_output(db, "claude-haiku-4-5") == 64_000
+    assert calls == []
 
 
-def test_resolve_max_tokens_explicit_and_garbage(db):
-    store.set_setting(db, "extract_max_tokens", "12345")
-    assert judge.resolve_max_tokens(db, "extract_max_tokens", "claude-sonnet-5-5", 2000) == 12345
-    store.set_setting(db, "extract_max_tokens", "not-a-number")
-    assert judge.resolve_max_tokens(db, "extract_max_tokens", "claude-sonnet-5-5", 2000) == 2000
-
-
-def test_resolve_max_tokens_defaults_to_model_ceiling(db):
-    # no settings row: the store default (0) and the module default both
-    # mean the model's own maximum
-    for key, default in (
-        ("triage_max_tokens", judge.TRIAGE_MAX_TOKENS),
-        ("extract_max_tokens", judge.EXTRACT_MAX_TOKENS),
-    ):
-        assert judge.resolve_max_tokens(db, key, "claude-haiku-4-5", default) == 64_000
-    store.set_setting(db, "extract_max_tokens", "not-a-number")
-    assert (
-        judge.resolve_max_tokens(
-            db, "extract_max_tokens", "claude-sonnet-5-5", judge.EXTRACT_MAX_TOKENS
-        )
-        == 128_000
+def test_unknown_model_looked_up_on_models_api_and_cached(db, monkeypatch):
+    store.set_setting(db, "anthropic_api_key", "test-key")
+    calls = _patch_models_api(
+        monkeypatch,
+        response={"id": "some-future-model", "max_input_tokens": 2_000_000, "max_tokens": 256_000},
     )
+    assert judge.model_max_output(db, "some-future-model") == 256_000
+    assert judge._model_limits(db, "some-future-model") == (2_000_000, 256_000)
+    assert len(calls) == 1  # cached per process
+    url, headers = calls[0]
+    assert url == "https://api.anthropic.com/v1/models/some-future-model"
+    assert headers == {"x-api-key": "test-key", "anthropic-version": judge.ANTHROPIC_VERSION}
 
 
-def test_model_max_content_chars_fits_the_context_window():
+def test_unknown_model_lookup_failure_names_the_model(db, monkeypatch):
+    store.set_setting(db, "anthropic_api_key", "test-key")
+    _patch_models_api(monkeypatch, error=RuntimeError("HTTP 404 from ...: not_found_error"))
+    with pytest.raises(RuntimeError, match="some-future-model"):
+        judge.model_max_output(db, "some-future-model")
+    assert "some-future-model" not in judge._FETCHED_LIMITS  # a failure is not cached
+
+
+def test_unknown_model_lookup_with_incomplete_response_raises(db, monkeypatch):
+    store.set_setting(db, "anthropic_api_key", "test-key")
+    _patch_models_api(monkeypatch, response={"id": "some-future-model"})
+    with pytest.raises(RuntimeError, match="some-future-model"):
+        judge.model_max_output(db, "some-future-model")
+
+
+def test_model_max_content_chars_fits_the_context_window(db, monkeypatch):
+    store.set_setting(db, "anthropic_api_key", "test-key")
+    _patch_models_api(
+        monkeypatch,
+        response={"max_input_tokens": 1_000_000, "max_tokens": 128_000},
+    )
     for model in ("claude-sonnet-5-5", "claude-haiku-4-5", "some-future-model"):
-        context, max_output = judge._model_limits(model)
-        chars = judge.model_max_content_chars(model)
+        context, max_output = judge._model_limits(db, model)
+        chars = judge.model_max_content_chars(db, model)
         # the content plus a full-ceiling response fits inside the window
         assert chars / judge.CONTENT_CHARS_PER_TOKEN + max_output < context
-    assert judge.model_max_content_chars("claude-sonnet-5-5") == 2_130_000
-    assert judge.model_max_content_chars("claude-haiku-4-5") == 290_000
+    assert judge.model_max_content_chars(db, "claude-sonnet-5-5") == 2_130_000
+    assert judge.model_max_content_chars(db, "claude-haiku-4-5") == 290_000
 
 
 def test_refusal_is_reported_as_a_refusal(db, monkeypatch):
@@ -260,6 +282,7 @@ def test_triage_records_judgment_and_tokens(db, monkeypatch):
 
     # static system prompt is cache_controlled; criteria+content in user turn
     payload = calls[0]
+    assert payload["max_tokens"] == judge.model_max_output(db, model)
     assert payload["system"][0]["cache_control"] == {"type": "ephemeral"}
     assert "the content text" in payload["messages"][0]["content"]
 
@@ -271,14 +294,17 @@ def test_triage_below_threshold_fails_gate(db, monkeypatch):
     assert verdict["passed"] is False
 
 
-def test_budget_exceeded_raises(db, monkeypatch):
+def test_usage_ledger_accumulates_without_a_budget(db, monkeypatch):
+    """the run ledger is reporting only: spend keeps accumulating and no call
+    is ever refused for it."""
     item, content_row, source = _seed(db)
     _patch_llm(monkeypatch, ['{"score": 5, "justification": "x", "claims": []}'])
-    store.set_setting(db, "run_token_budget", "120")
 
-    judge.triage_item(db, 1, item, content_row, source)  # spends 150 (100+50)
-    with pytest.raises(judge.BudgetExceeded):
+    for _ in range(3):
         judge.triage_item(db, 1, item, content_row, source)
+    ledger = json.loads(db.execute("SELECT token_usage FROM runs").fetchone()["token_usage"])
+    model = store.get_setting(db, "triage_model")
+    assert ledger[model] == {"input": 300, "output": 150}
 
 
 def test_missing_api_key_raises(db, monkeypatch):

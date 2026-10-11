@@ -135,6 +135,36 @@ def test_backfill_cutoff_stamped_for_pre_existing_sources():
         conn.close()
 
 
+def test_retired_token_limit_settings_deleted():
+    """004: production dbs still carry rows for the retired token limits;
+    they are deleted, everything else in settings is left alone."""
+    migrate_004 = _load_migration("migrate_004_drop_token_limit_settings")
+
+    database.init_db()
+    conn = database.connect()
+    for key, value in (
+        ("triage_max_tokens", "0"),
+        ("extract_max_tokens", "0"),
+        ("run_token_budget", "300000"),
+        ("retention_days", "90"),
+    ):
+        conn.execute(
+            "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, 'now')", (key, value)
+        )
+    conn.commit()
+    conn.close()
+
+    assert migrate_004() is True
+    assert migrate_004() is True  # idempotent
+
+    conn = database.connect()
+    try:
+        keys = {r["key"] for r in conn.execute("SELECT key FROM settings")}
+        assert keys == {"retention_days"}
+    finally:
+        conn.close()
+
+
 def test_connection_usable_across_threads(db):
     """fastapi runs the get_db generator and the endpoint on different
     threadpool threads; without check_same_thread=False every settings-page

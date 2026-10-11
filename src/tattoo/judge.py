@@ -10,14 +10,17 @@ authoritative thereafter. every judgment and extraction records the
 prompt_history_id that produced it, so shadow-mode comparisons are always
 within-ruleset.
 
-token usage from each response feeds the run ledger; crossing the run
-budget raises BudgetExceeded, which the pipeline turns into a loud abort.
+token usage from each response feeds the run ledger -- reporting only.
+there is no run budget and no configurable output cap: every call asks for
+the model's own maximum output, so a run never aborts or truncates to save
+tokens.
 """
 
 from __future__ import annotations
 
 import json
 import re
+import urllib.parse
 from datetime import UTC, datetime
 
 from tattoo import config, store
@@ -25,22 +28,19 @@ from tattoo.log import log
 from tattoo.sources import base
 
 ANTHROPIC_API = "https://api.anthropic.com/v1/messages"
+ANTHROPIC_MODELS_API = "https://api.anthropic.com/v1/models"
 ANTHROPIC_VERSION = "2023-06-01"
 
 PROMPT_NAMES = ("triage_system", "extract_system")
 
-# per-call output ceilings. these are the defaults only: the settings keys
-# triage_max_tokens / extract_max_tokens override them, and 0 (the default)
-# means "the model's own maximum" (see resolve_max_tokens). the api requires
-# max_tokens on every call, so there is no literal unlimited -- the model
-# ceiling is as close as it gets. billing is on tokens actually produced,
-# not on the cap, so raising it costs nothing until output actually grows.
-TRIAGE_MAX_TOKENS = 0
-EXTRACT_MAX_TOKENS = 0
+# every call sends max_tokens = the model's own maximum output. the api
+# requires max_tokens on every call, so there is no literal unlimited -- the
+# model ceiling is as close as it gets. billing is on tokens actually
+# produced, not on the cap, so the ceiling costs nothing until output grows.
 
 # (context window, max output) per model, in tokens (docs, 2026-09). a cap
-# above the model's own output limit is a 400, so an unknown model falls
-# back to limits every current model accepts rather than guessing high.
+# above the model's own output limit is a 400, so a model missing here is
+# looked up on the models api rather than guessed at (see _model_limits).
 MODEL_LIMITS = {
     "claude-fable-5-1": (1_000_000, 128_000),
     "claude-opus-5-5": (1_000_000, 128_000),
@@ -55,7 +55,10 @@ MODEL_LIMITS = {
     "claude-haiku-5-5": (1_000_000, 128_000),
     "claude-haiku-4-5": (200_000, 64_000),
 }
-UNKNOWN_MODEL_LIMITS = (200_000, 8192)
+
+# limits fetched from the models api, per process. a model id's limits do
+# not change under it, so one lookup per process is enough.
+_FETCHED_LIMITS: dict[str, tuple[int, int]] = {}
 
 # content is clipped only as far as the context window forces: the api
 # rejects a request whose input plus max_tokens exceeds the window, so the
@@ -65,60 +68,64 @@ UNKNOWN_MODEL_LIMITS = (200_000, 8192)
 PROMPT_HEADROOM_TOKENS = 20_000
 CONTENT_CHARS_PER_TOKEN = 2.5
 
-DEFAULT_RUN_TOKEN_BUDGET = 300_000
-
 GENERIC_CRITERIA = (
     "no source-specific criteria are configured. apply the generic signal "
     "definition from the system prompt as-is."
 )
 
 
-class BudgetExceeded(RuntimeError):
-    """the run crossed its token budget; abort loudly (plan §9)."""
-
-
 class TruncatedResponse(RuntimeError):
     """the model hit max_tokens mid-json. distinct from a merely malformed
-    response because the fix is a bigger ceiling, not a better prompt."""
+    response because the output is already the model's maximum: the
+    request needs to ask for less, not for a bigger ceiling."""
 
 
-def _model_limits(model: str) -> tuple[int, int]:
-    limits = MODEL_LIMITS.get((model or "").strip())
-    if limits is None:
-        log(
-            "judge",
-            "unknown model, capping context and output conservatively",
-            level="warn",
-            model=model,
-            context=UNKNOWN_MODEL_LIMITS[0],
-            max_tokens=UNKNOWN_MODEL_LIMITS[1],
-        )
-        return UNKNOWN_MODEL_LIMITS
+def _api_headers(conn) -> dict:
+    api_key = store.get_secret(conn, "anthropic_api_key")
+    if not api_key:
+        raise RuntimeError("anthropic api key not configured (settings or ANTHROPIC_API_KEY)")
+    return {"x-api-key": api_key, "anthropic-version": ANTHROPIC_VERSION}
+
+
+def _model_limits(conn, model: str) -> tuple[int, int]:
+    """(context window, max output) for a model: the known table first, then
+    the models api, cached per process. a failed lookup raises naming the
+    model -- guessing a small output cap would truncate silently instead."""
+    model = (model or "").strip()
+    limits = MODEL_LIMITS.get(model) or _FETCHED_LIMITS.get(model)
+    if limits is not None:
+        return limits
+    if not model:
+        raise RuntimeError("no model configured")
+    headers = _api_headers(conn)  # a missing key keeps its own message
+    url = f"{ANTHROPIC_MODELS_API}/{urllib.parse.quote(model, safe='')}"
+    try:
+        resp = base.get_json(url, headers=headers, timeout=30.0)
+        limits = (int(resp["max_input_tokens"]), int(resp["max_tokens"]))
+    except Exception as e:
+        raise RuntimeError(
+            f"could not look up limits for model {model!r} on the models api"
+            f" ({type(e).__name__}: {e}); add it to judge.MODEL_LIMITS or fix the model id"
+        ) from e
+    _FETCHED_LIMITS[model] = limits
+    log(
+        "judge",
+        "model limits fetched",
+        model=model,
+        context=limits[0],
+        max_tokens=limits[1],
+    )
     return limits
 
 
-def model_max_output(model: str) -> int:
-    return _model_limits(model)[1]
+def model_max_output(conn, model: str) -> int:
+    return _model_limits(conn, model)[1]
 
 
-def model_max_content_chars(model: str) -> int:
+def model_max_content_chars(conn, model: str) -> int:
     """the most content that fits beside a full-ceiling response."""
-    context, max_output = _model_limits(model)
+    context, max_output = _model_limits(conn, model)
     return int((context - max_output - PROMPT_HEADROOM_TOKENS) * CONTENT_CHARS_PER_TOKEN)
-
-
-def resolve_max_tokens(conn, key: str, model: str, default: int) -> int:
-    """settings value wins; 0 means the model's own ceiling; anything
-    unparseable or negative falls back to the default rather than failing
-    the run."""
-    raw = store.get_setting(conn, key, str(default))
-    try:
-        value = int(str(raw).strip())
-    except ValueError:
-        value = default
-    if value < 0:
-        value = default
-    return value if value > 0 else model_max_output(model)
 
 
 # -- prompt versioning (rally's history + pointer pattern) -----------------
@@ -209,16 +216,10 @@ def call_llm(
     user_text: str,
     max_tokens: int,
 ) -> tuple[str, dict]:
-    """one messages-api call with budget enforcement and usage accounting.
+    """one messages-api call with usage accounting.
     returns (text, usage) -- text is the concatenated text blocks (thinking
     blocks filtered out), usage feeds per-item token attribution."""
-    api_key = store.get_secret(conn, "anthropic_api_key")
-    if not api_key:
-        raise RuntimeError("anthropic api key not configured (settings or ANTHROPIC_API_KEY)")
-
-    if run_id is not None:
-        _check_budget(conn, run_id)
-
+    headers = _api_headers(conn)
     payload = {
         "model": model,
         "max_tokens": max_tokens,
@@ -231,7 +232,6 @@ def call_llm(
         ],
         "messages": [{"role": "user", "content": user_text}],
     }
-    headers = {"x-api-key": api_key, "anthropic-version": ANTHROPIC_VERSION}
     resp = base.post_json(ANTHROPIC_API, payload, headers=headers, timeout=120.0)
 
     usage = resp.get("usage") or {}
@@ -253,8 +253,7 @@ def call_llm(
     # keeps the diagnosis one log line away instead of an empty extraction.
     if resp.get("stop_reason") == "max_tokens":
         raise TruncatedResponse(
-            f"{model} hit max_tokens={max_tokens} mid-response; raise the ceiling "
-            "(0 = model maximum) in settings"
+            f"{model} hit max_tokens={max_tokens} (its maximum output) mid-response"
         )
     return text, usage
 
@@ -274,25 +273,6 @@ def _record_usage(conn, run_id: int, model: str, usage: dict) -> None:
     conn.commit()
 
 
-def _spent_tokens(conn, run_id: int) -> int:
-    row = conn.execute("SELECT token_usage FROM runs WHERE id = ?", (run_id,)).fetchone()
-    ledger = json.loads(row["token_usage"] or "{}")
-    return sum(m["input"] + m["output"] for m in ledger.values())
-
-
-def _check_budget(conn, run_id: int) -> None:
-    raw = store.get_setting(conn, "run_token_budget", str(DEFAULT_RUN_TOKEN_BUDGET))
-    try:
-        budget = int(raw)
-    except ValueError:
-        budget = DEFAULT_RUN_TOKEN_BUDGET
-    if budget <= 0:
-        return  # budget disabled
-    spent = _spent_tokens(conn, run_id)
-    if spent >= budget:
-        raise BudgetExceeded(f"run token budget exceeded: {spent} >= {budget}")
-
-
 # -- pass 1: triage ---------------------------------------------------------
 
 
@@ -302,8 +282,8 @@ def triage_item(conn, run_id: int, item, content_row, source) -> dict:
     prompt_id, system_text = current_prompt(conn, "triage_system")
     model = store.get_setting(conn, "triage_model")
 
-    user_text = _triage_user_prompt(item, content_row, source, model)
-    max_tokens = resolve_max_tokens(conn, "triage_max_tokens", model, TRIAGE_MAX_TOKENS)
+    user_text = _triage_user_prompt(conn, item, content_row, source, model)
+    max_tokens = model_max_output(conn, model)
     raw, usage = call_llm(conn, run_id, model, system_text, user_text, max_tokens)
     parsed = _extract_json_object(raw, required_keys=("score", "justification"))
     input_t, output_t = _usage_tokens(usage)
@@ -337,7 +317,7 @@ def triage_item(conn, run_id: int, item, content_row, source) -> dict:
     }
 
 
-def _triage_user_prompt(item, content_row, source, model: str) -> str:
+def _triage_user_prompt(conn, item, content_row, source, model: str) -> str:
     criteria = (source["criteria"] or "").strip() or GENERIC_CRITERIA
     degraded = bool(item["degraded"])
     return (
@@ -346,7 +326,7 @@ def _triage_user_prompt(item, content_row, source, model: str) -> str:
         f"DEGRADED: {'true' if degraded else 'false'}"
         f" (acquisition: {content_row['method']})\n"
         f"TITLE: {item['title']}\n"
-        f"CONTENT:\n{content_row['text'][: model_max_content_chars(model)]}"
+        f"CONTENT:\n{content_row['text'][: model_max_content_chars(conn, model)]}"
     )
 
 
@@ -362,9 +342,9 @@ def extract_item(conn, run_id: int, item, content_row, source) -> int:
     user_text = (
         f"SOURCE: {source['display_name']} ({source['type']})\n"
         f"TITLE: {item['title']}\n"
-        f"CONTENT:\n{content_row['text'][: model_max_content_chars(model)]}"
+        f"CONTENT:\n{content_row['text'][: model_max_content_chars(conn, model)]}"
     )
-    max_tokens = resolve_max_tokens(conn, "extract_max_tokens", model, EXTRACT_MAX_TOKENS)
+    max_tokens = model_max_output(conn, model)
     raw, usage = call_llm(conn, run_id, model, system_text, user_text, max_tokens)
     parsed = _extract_json_object(raw, required_keys=("bluf", "findings"))
     input_t, output_t = _usage_tokens(usage)

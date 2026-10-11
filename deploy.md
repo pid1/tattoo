@@ -90,7 +90,7 @@ Two deviations:
 All of this is done in the settings UI (mobile-friendly; jon can do it from a phone). Ask jon for the secrets now.
 
 1. **Schedule section**: timezone `America/Chicago`; daily run time `21:00` (the name argues for evening — confirm with jon); page URL `http://rosedale-nas.tail117cd.ts.net:6565` (this becomes the Pushover tap-through link, with a daily cache-buster appended automatically). — ✅ pre-applied via `POST /api/import/config`, along with `run_token_budget=300000`, `retention_days=90`, `shadow_mode=true`. Run time left at the 21:00 default, **still needs jon's confirmation**.
-2. **LLM section**: Anthropic API key (skip if provided via `.env` — the field shows "env override active"); models default to `claude-sonnet-5-5` (triage) and `claude-sonnet-5-5` (extraction), leave as-is; run token budget default `300000` — leave, revisit in Phase 6; **shadow mode ON** (default — do not turn it off yet). Press **Test connection** → expect "✓ connected to claude-sonnet-5-5".
+2. **LLM section**: Anthropic API key (skip if provided via `.env` — the field shows "env override active"); models default to `claude-sonnet-5-5` (triage) and `claude-sonnet-5-5` (extraction), leave as-is; **shadow mode ON** (default — do not turn it off yet). Press **Test connection** → expect "✓ connected to claude-sonnet-5-5".
 3. **Pushover section**: create an application named `tattoo` at pushover.net/apps if one doesn't exist, enter the app token and user key, press **Send test notification** → confirm it arrives on jon's phone.
 4. **YouTube section**: Data API key. If one must be created: Google Cloud console → new or existing project → enable "YouTube Data API v3" → Credentials → API key (restrict it to that API). The free 10k units/day quota is ample (~1 unit per 50 videos enriched). Without this key, @handle/watch-link resolution fails and Shorts/premieres are not filtered — it is effectively required.
 5. Retention: 90 days (default).
@@ -161,7 +161,7 @@ Exit: all sources added and enabled, criteria saved, list view shows them.
    - `judge` lines with scores, then `pages written`, `run finished status: ok`, and a Pushover digest (or NSTR skip).
 3. Open the dashboard: every item should render with its score badge and, for rejected items, the one-line reason (shadow mode). Spot-check that YouTube findings link to `watch?v=…&t=NNNs` and actually land near the claim.
 4. **Auto-caption quality check** (plan risk): for two or three technical videos, skim the judged transcripts' findings against the actual videos. If auto-captions are mangling the jargon badly enough that extraction is producing garbage specifics, note which channels are affected — that informs their criteria/threshold.
-5. Check `runs` telemetry after a couple of runs: `docker exec tattoo python -c "import sqlite3,json; c=sqlite3.connect('/data/tattoo.db'); [print(dict(r)) for r in c.execute('select id,status,items_seen,items_judged,items_passed,token_usage from runs order by id desc limit 5').fetchall()]"` (set row factory or just eyeball the tuples). Confirm token spend per run is sane against the 300k budget.
+5. Check `runs` telemetry after a couple of runs: `docker exec tattoo python -c "import sqlite3,json; c=sqlite3.connect('/data/tattoo.db'); [print(dict(r)) for r in c.execute('select id,status,items_seen,items_judged,items_passed,token_usage from runs order by id desc limit 5').fetchall()]"` (set row factory or just eyeball the tuples). Eyeball token spend per run — it is reported, not capped (there is no run budget).
 
 Exit: two consecutive clean scheduled runs (check the next two evenings), transcripts fetching without blocking, digest arriving on the phone.
 
@@ -221,18 +221,23 @@ emitting invalid JSON, plus one transient `HTTP 520` from the API. The durable f
 class is structured outputs (`output_config.format` with a json_schema), which the API
 enforces — **not yet implemented; recommended next.**
 
+> **Superseded (2026-10-11):** all token limits were later removed. The `triage_max_tokens`,
+> `extract_max_tokens` and `run_token_budget` settings no longer exist (migration 004 deletes
+> their rows); every call asks for the model's own maximum output, and a model missing from
+> `judge.MODEL_LIMITS` is looked up on the Anthropic Models API. `runs.token_usage` is still
+> recorded, as reporting only.
+
 ## Phase 6 — shadow-mode calibration (1–2 weeks)
 
 The gate ships in shadow mode: everything renders with scores, nothing is suppressed. The calibration loop:
 
 1. Each evening, jon reads the briefing and judges the judge: items scored high that are filler, items scored low that mattered.
 2. Adjust the offending source's criteria (and/or threshold) in settings, then press **Reprocess** — it re-scores today's cached content against the new prompts in seconds, no refetching. Iterate until the day's scores look right.
-3. Watch the per-source list view: pass rate tells you a source isn't worth its tokens; tokens-30d tells you which one is eating the budget. Prune or cap accordingly. This is where the Forward Observer vs S2 Underground overlap gets decided.
+3. Watch the per-source list view: pass rate tells you a source isn't worth its tokens; tokens-30d tells you which one is eating the most tokens. Prune or cap accordingly. This is where the Forward Observer vs S2 Underground overlap gets decided.
 4. Global prompt changes (the triage system prompt itself) are versioned — save creates a new version, and rollback is one tap if a change makes things worse. Every judgment records the prompt version that produced it, so comparisons stay honest.
 5. After 1–2 weeks of stable, agreeable scoring: **flip shadow mode off** in settings. Rejections become invisible; quiet days send nothing.
-6. Right-size `run_token_budget` from observed usage (aim ~2× a typical day so a burst doesn't abort a legitimate run).
 
-Exit: shadow mode off, thresholds trusted, budget right-sized.
+Exit: shadow mode off, thresholds trusted.
 
 **Shadow mode was turned off on 2026-08-06**, at jon's direction, without waiting out the
 1–2 week calibration. The gate is live: rejected items are now invisible and a quiet day sends
@@ -278,7 +283,7 @@ Leave a short ops note in the NAS documentation (wherever jon keeps it) covering
 - **Updates**: CI publishes `latest` on every merge to main. Update = pull + recreate the container (Unraid's built-in update button does this). Migrations run automatically at startup, preceded by an automatic DB snapshot into `/data/backups/`.
 - **Config backup**: `Settings → Download TOML` exports sources/settings/prompts (secrets excluded) — worth committing to a private notes repo after calibration stabilizes. Restore via `POST /api/import/config`.
 - **Adding sources later**: paste into settings from the phone share sheet; use disable (reversible) not purge; purge deletes cached content that cannot be refetched.
-- **Failure modes**: run failures arrive as priority −2 Pushover notices; `aborted_budget` status means the token ceiling fired — check for a runaway source before raising it. A dead container looks like a quiet day by design — the Docker tab and Grafana are the checks.
+- **Failure modes**: run failures arrive as priority −2 Pushover notices. There is no token ceiling to fire — a runaway source shows up as tokens-30d in the source list, not as an aborted run. A dead container looks like a quiet day by design — the Docker tab and Grafana are the checks.
 
 ---
 

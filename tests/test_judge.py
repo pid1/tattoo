@@ -179,6 +179,7 @@ def test_malformed_but_closed_is_not_reported_as_truncated():
 
 def test_model_max_output_known_and_unknown():
     assert judge.model_max_output("claude-sonnet-5-5") == 128_000
+    assert judge.model_max_output("claude-haiku-5-5") == 128_000
     assert judge.model_max_output("claude-haiku-4-5") == 64_000
     assert judge.model_max_output("some-future-model") == judge.UNKNOWN_MODEL_LIMITS[1]
 
@@ -220,6 +221,22 @@ def test_model_max_content_chars_fits_the_context_window():
         assert chars / judge.CONTENT_CHARS_PER_TOKEN + max_output < context
     assert judge.model_max_content_chars("claude-sonnet-5-5") == 2_130_000
     assert judge.model_max_content_chars("claude-haiku-4-5") == 290_000
+
+
+def test_refusal_is_reported_as_a_refusal(db, monkeypatch):
+    store.set_setting(db, "anthropic_api_key", "test-key")
+
+    def fake_post_json(url, payload, headers=None, timeout=None):
+        return {
+            "content": [],
+            "stop_reason": "refusal",
+            "stop_details": {"type": "refusal", "category": "cyber"},
+            "usage": {"input_tokens": 10, "output_tokens": 0},
+        }
+
+    monkeypatch.setattr(judge.base, "post_json", fake_post_json)
+    with pytest.raises(RuntimeError, match="declined.*category=cyber"):
+        judge.call_llm(db, None, "claude-haiku-5-5", "sys", "user", 1000)
 
 
 # -- triage ------------------------------------------------------------------

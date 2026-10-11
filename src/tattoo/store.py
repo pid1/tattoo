@@ -31,7 +31,7 @@ DEFAULTS = {
     "triage_max_tokens": "0",
     "extract_max_tokens": "0",
     "shadow_mode": "true",
-    "triage_model": "claude-haiku-4-5",
+    "triage_model": "claude-haiku-5-5",
     "extract_model": "claude-sonnet-5-5",
 }
 

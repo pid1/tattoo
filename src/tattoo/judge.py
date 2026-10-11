@@ -52,6 +52,7 @@ MODEL_LIMITS = {
     "claude-sonnet-5-5": (1_000_000, 128_000),
     "claude-sonnet-5": (1_000_000, 128_000),
     "claude-sonnet-4-6": (1_000_000, 128_000),
+    "claude-haiku-5-5": (1_000_000, 128_000),
     "claude-haiku-4-5": (200_000, 64_000),
 }
 UNKNOWN_MODEL_LIMITS = (200_000, 8192)
@@ -236,6 +237,12 @@ def call_llm(
     usage = resp.get("usage") or {}
     if run_id is not None:
         _record_usage(conn, run_id, model, usage)
+
+    # a safety-classifier decline is an http 200 with no usable text. name it
+    # so the log says why instead of reporting an empty response.
+    if resp.get("stop_reason") == "refusal":
+        category = (resp.get("stop_details") or {}).get("category")
+        raise RuntimeError(f"{model} declined the request (refusal, category={category})")
 
     # filter by block type: newer models may return thinking blocks first
     text = "".join(b.get("text", "") for b in resp.get("content", []) if b.get("type") == "text")

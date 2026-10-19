@@ -119,7 +119,10 @@ def update_source(source_id: int, body: dict, db: sqlite3.Connection = Depends(g
     if unknown:
         raise HTTPException(status_code=400, detail=f"not editable: {', '.join(sorted(unknown))}")
 
-    assignments, values = [], []
+    # merge the request onto the current row and write every editable
+    # column back, so the sql text is one constant and request data only
+    # ever travels as bound values (never as column names)
+    fields = {key: row[key] for key in _EDITABLE}
     for key, value in body.items():
         if key in ("threshold", "daily_item_cap"):
             value = int(value)
@@ -127,16 +130,22 @@ def update_source(source_id: int, body: dict, db: sqlite3.Connection = Depends(g
             value = int(bool(value))  # disable = the reversible remove (plan §8)
         elif key == "options":
             value = json.dumps(value or {})
-        assignments.append(f"{key} = ?")
-        values.append(value)
-    assignments.append("updated_at = ?")
-    values.append(datetime.now(UTC).isoformat(timespec="seconds"))
-    values.append(source_id)
-    # Every key is checked against _EDITABLE above and a request carrying any
-    # other key is rejected with a 400, so only literals reach the SQL text.
-    # Values stay bound.
-    # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query
-    db.execute(f"UPDATE sources SET {', '.join(assignments)} WHERE id = ?", values)
+        fields[key] = value
+    db.execute(
+        "UPDATE sources SET display_name = ?, site_url = ?, criteria = ?, threshold = ?,"
+        " daily_item_cap = ?, enabled = ?, options = ?, updated_at = ? WHERE id = ?",
+        (
+            fields["display_name"],
+            fields["site_url"],
+            fields["criteria"],
+            fields["threshold"],
+            fields["daily_item_cap"],
+            fields["enabled"],
+            fields["options"],
+            datetime.now(UTC).isoformat(timespec="seconds"),
+            source_id,
+        ),
+    )
     db.commit()
     row = db.execute("SELECT * FROM sources WHERE id = ?", (source_id,)).fetchone()
     return _row_to_dict(db, row)

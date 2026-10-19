@@ -2,19 +2,19 @@
 name = "tattoo"
 version = "0.1.0"
 description = "daily feed digest with an llm usefulness gate, served on the home tailnet"
-requires-python = ">=3.14"
+requires-python = ">=3.15"
 dependencies = [
-    "fastapi[standard]>=0.129.0",
+    "fastapi[standard]>=0.148.0",
     "feedparser>=6.0.14",
     "jinja2>=3.1.6",
-    "trafilatura>=2.2.0",
+    "trafilatura>=2.3.1",
     "youtube-transcript-api>=1.2.4",
 ]
 
 [dependency-groups]
 dev = [
-    "pytest>=8.0",
-    "ruff>=0.9",
+    "pytest>=9.1.1",
+    "ruff>=0.17.1",
 ]
 
 # black and ruff format both run in CI. ruff reads line-length from
@@ -22,7 +22,7 @@ dev = [
 # so the two disagree on every line between 88 and 100 characters.
 [tool.ruff]
 line-length = 100
-target-version = "py314"
+target-version = "py315"
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "C4", "UP"]

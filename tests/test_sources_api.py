@@ -49,6 +49,23 @@ def test_update_criteria_threshold_cap(client):
     )
 
 
+def test_partial_update_leaves_other_fields_alone(client):
+    """a put touching one field must not reset the others: the update writes
+    every editable column back, merged from the current row."""
+    src = _create(
+        client,
+        site_url="https://example.com",
+        criteria="rf only",
+        threshold=8,
+        daily_item_cap=4,
+        options={"k": "v"},
+    ).json()
+    updated = client.put(f"/api/sources/{src['id']}", json={"display_name": "Renamed"}).json()
+    assert updated["display_name"] == "Renamed"
+    for key in ("site_url", "criteria", "threshold", "daily_item_cap", "options", "enabled"):
+        assert updated[key] == src[key], key
+
+
 def test_disable_is_reversible_and_keeps_rows(client, db):
     src = _create(client).json()
     now = datetime.now(UTC).isoformat(timespec="seconds")

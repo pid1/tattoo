@@ -47,6 +47,6 @@ Without devenv: `uv sync`, then `PYTHONPATH=src uv run pytest` etc. Never bare `
 
 ## Style
 
-- Python 3.14, PEP-604 unions, `from __future__ import annotations`.
+- Python 3.15, PEP-604 unions, `from __future__ import annotations`.
 - Lowercase docstrings and comments; comments record _why_ (and the evidence), not what.
 - Tests are plain pytest functions; docstrings state the rule being locked in.

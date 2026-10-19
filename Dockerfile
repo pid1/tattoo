@@ -1,12 +1,12 @@
 # two-stage uv build (rally/puffin pattern). deps resolve from the lockfile
 # alone; the runtime stage carries only the venv plus source and assets.
-FROM python:3.14-slim AS builder
+FROM python:3.15-slim AS builder
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --no-dev --frozen
 
-FROM python:3.14-slim
+FROM python:3.15-slim
 WORKDIR /app
 COPY --from=builder /app/.venv .venv
 COPY src/ src/

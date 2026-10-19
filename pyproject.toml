@@ -2,7 +2,7 @@
 name = "tattoo"
 version = "0.1.0"
 description = "daily feed digest with an llm usefulness gate, served on the home tailnet"
-requires-python = ">=3.14"
+requires-python = ">=3.15"
 dependencies = [
     "fastapi[standard]>=0.129.0",
     "feedparser>=6.0.14",
@@ -22,7 +22,7 @@ dev = [
 # so the two disagree on every line between 88 and 100 characters.
 [tool.ruff]
 line-length = 100
-target-version = "py314"
+target-version = "py315"
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "C4", "UP"]

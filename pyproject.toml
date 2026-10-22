@@ -21,6 +21,10 @@ dev = [
 # least 7 days (factory policy). Relative, so the window rolls forward.
 [tool.uv]
 exclude-newer = "7 days"
+# Cooldown exception (factory 2026-10-22, remove next run): certifi
+# 2026.10.19 drops the distrusted "emSign ECC Root CA - G3" root
+# (Semgrep ssc-5df0a6b6-da47-4290-9f7c-28111c57478b). It is under 7 days old.
+exclude-newer-package = { certifi = false }
 
 # black and ruff format both run in CI. ruff reads line-length from
 # [tool.ruff]; black does not, and would otherwise wrap at its default 88,

@@ -21,6 +21,10 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
+          # Pinned (matches the Dockerfile) so CI doesn't install a uv
+          # release younger than the 7-day cooldown; 0.13.x understands the
+          # relative exclude-newer in pyproject.toml.
+          version: "0.13.1"
           enable-cache: true
       - name: install dependencies
         run: uv sync --frozen

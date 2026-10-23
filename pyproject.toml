@@ -37,3 +37,17 @@ testpaths = ["tests"]
 # the app is a src-layout package that runs with src on PYTHONPATH rather
 # than being installed (rally convention)
 pythonpath = ["src"]
+
+# supply-chain cooldown. the relative form keeps the window rolling; an absolute
+# timestamp would freeze the lock. each exemption caps a package just after the
+# release already locked or required, and is recorded in AGENTS.md ### Holds
+# with its expiry.
+[tool.uv]
+exclude-newer = "7 days"
+
+[tool.uv.exclude-newer-package]
+certifi = "2026-10-20T03:00:00Z"
+fastapi = "2026-10-19T13:00:00Z"
+httpcore2 = "2026-10-18T17:00:00Z"
+httpx2 = "2026-10-18T17:00:00Z"
+starlette = "2026-10-18T16:30:00Z"

@@ -55,9 +55,10 @@ Without devenv: `uv sync`, then `PYTHONPATH=src uv run pytest` etc. Never bare `
 
 ### Build and test
 - `uv sync --locked`, then `uv run pytest` (170 passed), `uv run ruff check .` and `uv run ruff format --check .`. These match the `check` devenv script and the steps in `.github/workflows/tests.yml`.
+- To run the app, `docker build -t tattoo .`, then `docker run --network none tattoo` and request routes inside the container. `/settings` and `/api/settings` answer 200. `/` redirects to `/dashboard/`, which answers 404 until the first briefing renders. A fresh database has no sources, so the scheduler fetches nothing.
 
 ### Toolchain
-- uv with a committed `uv.lock`. The upkeep PR adds the uv cooldown, `[tool.uv] exclude-newer = "7 days"`, in `pyproject.toml`.
+- uv with a committed `uv.lock`. `pyproject.toml` sets the uv cooldown, `[tool.uv] exclude-newer = "7 days"`, and holds Sadr's per-package caps in `[tool.uv.exclude-newer-package]`.
 - Python 3.15 in `.python-version`, `pyproject.toml`, the Dockerfile and `devenv.nix`. `.python-version` stays `3.15`, not an exact patch, because `devenv.nix` takes `pkgs.python315` from nixpkgs-unstable, which was 3.15.0 on 2026-10-23 while CPython 3.15.1 was out.
 - The repo commits no `devenv.lock`, so the devenv inputs `nixpkgs` and `devenv` follow their branches unpinned.
 

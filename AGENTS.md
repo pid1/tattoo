@@ -50,3 +50,16 @@ Without devenv: `uv sync`, then `PYTHONPATH=src uv run pytest` etc. Never bare `
 - Python 3.15, PEP-604 unions, `from __future__ import annotations`.
 - Lowercase docstrings and comments; comments record _why_ (and the evidence), not what.
 - Tests are plain pytest functions; docstrings state the rule being locked in.
+
+## Sadr
+
+### Build and test
+- `uv sync --locked`, then `uv run pytest` (170 passed), `uv run ruff check .` and `uv run ruff format --check .`. These match the `check` devenv script and the steps in `.github/workflows/tests.yml`.
+
+### Toolchain
+- uv with a committed `uv.lock`. The upkeep PR adds the uv cooldown, `[tool.uv] exclude-newer = "7 days"`, in `pyproject.toml`.
+- Python 3.15 in `.python-version`, `pyproject.toml`, the Dockerfile and `devenv.nix`. `.python-version` stays `3.15`, not an exact patch, because `devenv.nix` takes `pkgs.python315` from nixpkgs-unstable, which was 3.15.0 on 2026-10-23 while CPython 3.15.1 was out.
+- The repo commits no `devenv.lock`, so the devenv inputs `nixpkgs` and `devenv` follow their branches unpinned.
+
+### Deploys outside CI
+- The Dockerfile installs with `uv sync --no-dev --frozen`, so production installs come from `uv.lock`. `.github/workflows/container.yml` builds the image.

@@ -101,3 +101,18 @@ def test_fetch_network_error_retries(monkeypatch, no_sleep):
     with pytest.raises(RuntimeError, match="network error fetching"):
         base.fetch("https://example.com/feed", max_attempts=2)
     assert len(no_sleep) == 1
+
+
+@pytest.mark.parametrize("url", ["file:///proc/self/environ", "ftp://example.com/feed", "data:,x"])
+def test_fetch_refuses_non_http_schemes(monkeypatch, url):
+    """feed entry links are third-party data: a non-http(s) url must never
+    reach urlopen, whose default opener reads file:// urls from local disk."""
+
+    def fake_urlopen(req, timeout=None):
+        raise AssertionError("urlopen must not be called")
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    with pytest.raises(RuntimeError, match="refusing to fetch"):
+        base.fetch(url)
+    with pytest.raises(RuntimeError, match="refusing to fetch"):
+        base.get_bytes(url)

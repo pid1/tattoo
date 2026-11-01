@@ -14,7 +14,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
-    "ruff>=0.17.1",
+    "ruff>=0.17.2",
 ]
 
 # black and ruff format both run in CI. ruff reads line-length from

@@ -17,6 +17,7 @@ import json
 import random
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -67,6 +68,17 @@ def safe(fn: Callable[[], Any]) -> dict:
 
 # -- http --------------------------------------------------------------------
 
+# feed entry links are third-party data and reach fetch() unvalidated, and
+# urllib's default opener serves file:// urls. a feed could make us read local
+# files such as /proc/self/environ, which holds any api key set by env var.
+_ALLOWED_SCHEMES = ("http", "https")
+
+
+def _require_http(url: str) -> None:
+    scheme = urllib.parse.urlsplit(url).scheme.lower()
+    if scheme not in _ALLOWED_SCHEMES:
+        raise RuntimeError(f"refusing to fetch {url}: scheme {scheme!r} is not http or https")
+
 
 def _request(
     method: str,
@@ -75,13 +87,14 @@ def _request(
     body: bytes | None = None,
     timeout: float = DEFAULT_TIMEOUT,
 ) -> bytes:
+    _require_http(url)
     h = {"User-Agent": USER_AGENT}
     if headers:
         h.update(headers)
     req = urllib.request.Request(url, data=body, headers=h, method=method)
     try:
-        # Fetching a configured source feed is what this function is for; the
-        # existing noqa records the same assessment for ruff.
+        # _require_http above limits the url to http and https, so urlopen
+        # cannot read a local file here.
         # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
             return resp.read()
@@ -125,6 +138,7 @@ def fetch(
     attempt (plan §0.8). retries fire on 429 and transient 5xx (honoring
     Retry-After, capped) and on network errors; everything else raises the
     normalized RuntimeError immediately."""
+    _require_http(url)
     h = {"User-Agent": USER_AGENT}
     if headers:
         h.update(headers)
@@ -138,7 +152,7 @@ def fetch(
         attempt += 1
         req = urllib.request.Request(url, headers=h, method="GET")
         try:
-            # The retry path fetches the same configured feed URL as above.
+            # _require_http above limits the url to http and https.
             # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
                 return FetchResult(
@@ -243,8 +257,6 @@ def post_form(
 ) -> Any:
     """form-encoded post for apis like pushover that don't accept json bodies.
     None values are dropped rather than sent as the string 'None'."""
-    import urllib.parse
-
     h = {"content-type": "application/x-www-form-urlencoded"}
     if headers:
         h.update(headers)

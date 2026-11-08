@@ -22,8 +22,10 @@ in
   };
 
   # The app is a src-layout package that runs with src on PYTHONPATH rather
-  # than being installed (rally convention).
-  env.PYTHONPATH = "${config.env.DEVENV_ROOT}/src";
+  # than being installed (rally convention). mkForce because devenv's python
+  # module sets PYTHONPATH to its own sitecustomize.py dir, which only matters
+  # for nix python packages that spawn python subprocesses. this repo has none.
+  env.PYTHONPATH = lib.mkForce "${config.env.DEVENV_ROOT}/src";
 
   # Pre-commit hooks
   pre-commit.hooks = {

@@ -59,8 +59,8 @@ Without devenv: `uv sync`, then `PYTHONPATH=src uv run pytest` etc. Never bare `
 - Installing devenv needs `https://devenv.cachix.org` as a trusted substituter in `/etc/nix/nix.conf`. Without it, Nix builds devenv from source.
 
 ### Toolchain
-- uv with a committed `uv.lock`. `pyproject.toml` sets the uv cooldown, `[tool.uv] exclude-newer = "7 days"`, and holds Sadr's per-package caps in `[tool.uv.exclude-newer-package]`.
-- Python 3.15 in `.python-version`, `pyproject.toml`, the Dockerfile and `devenv.nix`. `.python-version` stays `3.15`, not an exact patch, because `devenv.nix` takes `pkgs.python315` from nixpkgs-unstable, which was 3.15.0 on 2026-11-01 while CPython 3.15.2 was out.
+- uv with a committed `uv.lock`. `pyproject.toml` sets the uv cooldown, `[tool.uv] exclude-newer = "7 days"`. Sadr puts its per-package caps in `[tool.uv.exclude-newer-package]`, and the table is absent while there are no caps.
+- Python 3.15 in `.python-version`, `pyproject.toml`, the Dockerfile and `devenv.nix`. `.python-version` stays `3.15`, not an exact patch, because `devenv.nix` takes `pkgs.python315` from nixpkgs-unstable, which was 3.15.0 at the 2026-11-07 channel release 4fe25e1 while CPython 3.15.2 was out.
 - The repo commits `devenv.lock`, which pins the devenv inputs `nixpkgs`, `devenv` and `git-hooks`. Move each one only to a commit or channel release at least 7 days old.
 
 ### Deploys outside CI

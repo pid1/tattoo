@@ -56,11 +56,12 @@ Without devenv: `uv sync`, then `PYTHONPATH=src uv run pytest` etc. Never bare `
 ### Build and test
 - `uv sync --locked`, then `uv run pytest` (173 passed), `uv run ruff check .` and `uv run ruff format --check .`. These match the `check` devenv script and the steps in `.github/workflows/tests.yml`.
 - To run the app, `docker build -t tattoo .`, then `docker run --network none tattoo` and request routes inside the container. `/settings` and `/api/settings` answer 200. `/` redirects to `/dashboard/`, which answers 404 until the first briefing renders. A fresh database has no sources, so the scheduler fetches nothing.
-- Installing devenv needs `https://devenv.cachix.org` as a trusted substituter in `/etc/nix/nix.conf`. Without it, Nix builds devenv from source.
+- Set `https://devenv.cachix.org` as a trusted substituter in `/etc/nix/nix.conf` before you install devenv. Even with it, `nix profile add github:cachix/devenv/v2.4.0` built devenv from source, in about 50 minutes on 2026-11-22.
+- `devenv shell` writes an untracked `.pre-commit-config.yaml` at the repo root. Delete it before committing.
 
 ### Toolchain
 - uv with a committed `uv.lock`. `pyproject.toml` sets the uv cooldown, `[tool.uv] exclude-newer = "7 days"`. Sadr puts its per-package caps in `[tool.uv.exclude-newer-package]`, and the table is absent while there are no caps.
-- Python 3.15 in `.python-version`, `pyproject.toml`, the Dockerfile and `devenv.nix`. `.python-version` stays `3.15`, not an exact patch, because `devenv.nix` takes `pkgs.python315` from nixpkgs-unstable, which was 3.15.0 at the 2026-11-07 channel release 4fe25e1 while CPython 3.15.2 was out.
+- Python 3.15.2 in `.python-version` and the Dockerfile, and `>=3.15` in `pyproject.toml`. `devenv.nix` takes `pkgs.python315` from nixpkgs-unstable, which is 3.15.2 at the 2026-11-15 channel release e126e9e.
 - The repo commits `devenv.lock`, which pins the devenv inputs `nixpkgs`, `devenv` and `git-hooks`. Move each one only to a commit or channel release at least 7 days old.
 
 ### Deploys outside CI
